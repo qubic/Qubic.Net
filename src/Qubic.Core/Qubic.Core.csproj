@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>Qubic.Core</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Qubic.NET Contributors</Authors>
+    <Description>Core domain models and abstractions for the Qubic network</Description>
+    <PackageTags>qubic;blockchain;cryptocurrency</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Qubic.Core.Tests" />
+    <InternalsVisibleTo Include="Qubic.Serialization.Tests" />
+    <InternalsVisibleTo Include="Qubic.Network.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Qubic.Crypto" Version="1.1.0" />
+  </ItemGroup>
+
+</Project>

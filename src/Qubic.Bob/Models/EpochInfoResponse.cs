@@ -1,0 +1,67 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace Qubic.Bob.Models;
+
+/// <summary>
+/// Epoch info response from qubic_getCurrentEpoch or qubic_getEpochInfo.
+/// </summary>
+public sealed class EpochInfoResponse
+{
+    [JsonPropertyName("epoch")]
+    public uint Epoch { get; set; }
+
+    [JsonPropertyName("initialTick")]
+    public JsonElement InitialTick { get; set; }
+
+    [JsonPropertyName("endTick")]
+    public JsonElement EndTick { get; set; }
+
+    [JsonPropertyName("finalTick")]
+    public JsonElement FinalTick { get; set; }
+
+    [JsonPropertyName("endTickStartLogId")]
+    public JsonElement EndTickStartLogId { get; set; }
+
+    [JsonPropertyName("endTickEndLogId")]
+    public JsonElement EndTickEndLogId { get; set; }
+
+    [JsonPropertyName("numberOfTransactions")]
+    public JsonElement NumberOfTransactions { get; set; }
+
+    /// <summary>
+    /// Parses a JsonElement that may be a string or number to ulong.
+    /// </summary>
+    private static ulong ParseJsonElement(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Number)
+        {
+            if (element.TryGetUInt64(out var u)) return u;
+            if (element.TryGetInt64(out var s)) return s >= 0 ? (ulong)s : 0;
+            return 0;
+        }
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            return ulong.TryParse(element.GetString(), out var val) ? val : 0;
+        }
+        return 0;
+    }
+
+    /// <summary>Gets InitialTick as ulong.</summary>
+    public ulong GetInitialTick() => ParseJsonElement(InitialTick);
+
+    /// <summary>Gets EndTick as ulong.</summary>
+    public ulong GetEndTick() => ParseJsonElement(EndTick);
+
+    /// <summary>Gets FinalTick as ulong.</summary>
+    public ulong GetFinalTick() => ParseJsonElement(FinalTick);
+
+    /// <summary>Gets EndTickStartLogId as ulong.</summary>
+    public ulong GetEndTickStartLogId() => ParseJsonElement(EndTickStartLogId);
+
+    /// <summary>Gets EndTickEndLogId as ulong.</summary>
+    public ulong GetEndTickEndLogId() => ParseJsonElement(EndTickEndLogId);
+
+    /// <summary>Gets NumberOfTransactions as ulong.</summary>
+    public ulong GetNumberOfTransactions() => ParseJsonElement(NumberOfTransactions);
+}

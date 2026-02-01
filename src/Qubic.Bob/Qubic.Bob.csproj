@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>Qubic.Bob</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Qubic.NET Contributors</Authors>
+    <Description>JSON-RPC client for QubicBob API</Description>
+    <PackageTags>qubic;blockchain;bob;json-rpc</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Qubic.Bob.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Qubic.Core" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Net.Http.Json" Version="8.*" />
+  </ItemGroup>
+
+</Project>

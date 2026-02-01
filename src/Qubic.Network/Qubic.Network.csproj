@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>Qubic.Network</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Qubic.NET Contributors</Authors>
+    <Description>Direct TCP communication with Qubic network nodes</Description>
+    <PackageTags>qubic;blockchain;network;tcp</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Qubic.Serialization" Version="1.0.0" />
+  </ItemGroup>
+
+</Project>

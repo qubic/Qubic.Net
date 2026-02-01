@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>Qubic.Crypto</PackageId>
+    <Version>1.1.0</Version>
+    <Authors>j0et0m</Authors>
+    <Company>Qubic</Company>
+    <Description>Pure C#/.NET implementation of Qubic cryptographic primitives: K12 (KangarooTwelve) hashing, FourQ elliptic curve, SchnorrQ signatures, and ECDH key exchange. Zero external dependencies.</Description>
+    <PackageTags>qubic;crypto;k12;kangarootwelve;fourq;schnorrq;ecdh;signature;hash</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/j0et0m/csharp-qubic-crypto</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/j0et0m/csharp-qubic-crypto</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
