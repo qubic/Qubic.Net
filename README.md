@@ -4,14 +4,23 @@ A modular .NET 8.0 library for interacting with the [Qubic](https://qubic.org) n
 
 ## Packages
 
-| Package | Description |
-|---------|-------------|
-| **Qubic.Crypto** | Pure C# implementation of Qubic cryptographic primitives: K12 (KangarooTwelve) hashing, FourQ elliptic curve, SchnorrQ signatures, and ECDH key exchange. Zero external dependencies. |
-| **Qubic.Core** | Core domain models, identity handling, transaction building, and signing abstractions. |
-| **Qubic.Serialization** | Binary serialization for the Qubic network protocol (packet headers, readers, writers). |
-| **Qubic.Network** | Direct TCP client for communicating with Qubic network nodes. |
-| **Qubic.Rpc** | HTTP client for the official Qubic RPC API. |
-| **Qubic.Bob** | JSON-RPC client for the QubicBob API. |
+| Package | Version | Description |
+|---------|---------|-------------|
+| **[Qubic.Crypto](https://www.nuget.org/packages/Qubic.Crypto)** | [![NuGet](https://img.shields.io/nuget/v/Qubic.Crypto)](https://www.nuget.org/packages/Qubic.Crypto) | Pure C# implementation of Qubic cryptographic primitives: K12 (KangarooTwelve) hashing, FourQ elliptic curve, SchnorrQ signatures, and ECDH key exchange. Zero external dependencies. |
+| **[Qubic.Core](https://www.nuget.org/packages/Qubic.Core)** | [![NuGet](https://img.shields.io/nuget/v/Qubic.Core)](https://www.nuget.org/packages/Qubic.Core) | Core domain models, identity handling, transaction building, and signing abstractions. |
+| **[Qubic.Serialization](https://www.nuget.org/packages/Qubic.Serialization)** | [![NuGet](https://img.shields.io/nuget/v/Qubic.Serialization)](https://www.nuget.org/packages/Qubic.Serialization) | Binary serialization for the Qubic network protocol (packet headers, readers, writers). |
+| **[Qubic.Network](https://www.nuget.org/packages/Qubic.Network)** | [![NuGet](https://img.shields.io/nuget/v/Qubic.Network)](https://www.nuget.org/packages/Qubic.Network) | Direct TCP client for communicating with Qubic network nodes. |
+| **[Qubic.Rpc](https://www.nuget.org/packages/Qubic.Rpc)** | [![NuGet](https://img.shields.io/nuget/v/Qubic.Rpc)](https://www.nuget.org/packages/Qubic.Rpc) | HTTP client for the official Qubic RPC API. |
+| **[Qubic.Bob](https://www.nuget.org/packages/Qubic.Bob)** | [![NuGet](https://img.shields.io/nuget/v/Qubic.Bob)](https://www.nuget.org/packages/Qubic.Bob) | JSON-RPC client for the QubicBob API. |
+
+### Installation
+
+```bash
+dotnet add package Qubic.Core
+dotnet add package Qubic.Network
+dotnet add package Qubic.Rpc
+dotnet add package Qubic.Bob
+```
 
 ### Dependency Graph
 
