@@ -136,23 +136,15 @@ public class QubicCrypt : IQubicCrypt
     }
 
     /// <summary>
-    /// Converts bytes to human-readable format (shifted hex using a-p).
+    /// Converts 32-byte data to human-readable lowercase identity format (60 chars).
+    /// Same encoding as <see cref="GetIdentityFromPublicKey"/> but lowercase.
     /// </summary>
     public string GetHumanReadableBytes(byte[] data)
     {
-        if (data == null)
-            throw new ArgumentNullException(nameof(data));
+        if (data == null || data.Length != 32)
+            throw new ArgumentException("Data must be 32 bytes", nameof(data));
 
-        const string SHIFTED_HEX_CHARS = "abcdefghijklmnop";
-        var result = new char[data.Length * 2];
-
-        for (int i = 0; i < data.Length; i++)
-        {
-            result[i * 2] = SHIFTED_HEX_CHARS[(data[i] >> 4) & 0x0F];
-            result[i * 2 + 1] = SHIFTED_HEX_CHARS[data[i] & 0x0F];
-        }
-
-        return new string(result);
+        return GetIdentityFromPublicKey(data).ToLowerInvariant();
     }
 
     /// <summary>
