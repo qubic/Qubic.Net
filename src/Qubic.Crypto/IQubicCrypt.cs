@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 
 namespace Qubic.Crypto;
 
@@ -49,7 +48,7 @@ public interface IQubicCrypt
     string GetIdentityFromPublicKey(byte[] publicKey);
 
     /// <summary>
-    /// Converts bytes to human-readable format (shifted hex using a-p).
+    /// Converts 32-byte data to human-readable lowercase identity format (60 chars).
     /// </summary>
     string GetHumanReadableBytes(byte[] data);
 
@@ -67,35 +66,6 @@ public interface IQubicCrypt
     /// Verifies a message with separate signature.
     /// </summary>
     bool Verify(byte[] publicKey, byte[] message, byte[] signature);
-
-    /// <summary>
-    /// Converts shifted hex string (a-p) to bytes.
-    /// </summary>
-    byte[] ShiftedHexToBytes(string hex)
-    {
-        const int HEX_CHARS_PER_BYTE = 2;
-        const int HEX_BASE = 16;
-        const string SHIFTED_HEX_CHARS = "abcdefghijklmnop";
-        const string HEX_CHARS = "0123456789abcdef";
-
-        hex = hex.ToLower();
-
-        if (hex.Length % HEX_CHARS_PER_BYTE != 0)
-        {
-            hex = "a" + hex;
-        }
-
-        byte[] bytes = new byte[hex.Length / HEX_CHARS_PER_BYTE];
-
-        for (int i = 0, c = 0; c < hex.Length; c += HEX_CHARS_PER_BYTE)
-        {
-            string hexChunk = hex.Substring(c, HEX_CHARS_PER_BYTE);
-            string processedHex = new string(hexChunk.Select(ch => HEX_CHARS[SHIFTED_HEX_CHARS.IndexOf(ch)]).ToArray());
-            bytes[i++] = Convert.ToByte(processedHex, HEX_BASE);
-        }
-
-        return bytes;
-    }
 
     /// <summary>
     /// Converts human-readable string (e.g., txid) to digest bytes.

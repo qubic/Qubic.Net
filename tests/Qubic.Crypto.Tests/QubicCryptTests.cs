@@ -210,16 +210,6 @@ public class QubicCryptTests
     }
 
     [Fact]
-    public void ShiftedHexToBytes_Works()
-    {
-        var hex = "aabpklpp";
-
-        var result = _crypt.ShiftedHexToBytes(hex);
-
-        Assert.Equal(new byte[] { 0x00, 0x1F, 0xAB, 0xFF }, result);
-    }
-
-    [Fact]
     public void Verify_QubicNetworkSignedPacket()
     {
         var identity = "UGQLSPXWWQORKDDJNOQVYRPYPWKDYLBCTOJCQTPRJFUXGTQXJAVACKSDDNMA";
