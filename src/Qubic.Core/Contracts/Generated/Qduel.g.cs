@@ -74,8 +74,8 @@ public readonly struct GetPercentFeesOutput : ISmartContractOutput<GetPercentFee
             DevFeePercentBps = data.Slice(0, 1)[0],
             BurnFeePercentBps = data.Slice(1, 1)[0],
             ShareholdersFeePercentBps = data.Slice(2, 1)[0],
-            PercentScale = BinaryPrimitives.ReadUInt16LittleEndian(data[3..]),
-            ReturnCode = BinaryPrimitives.ReadUInt64LittleEndian(data[5..])
+            PercentScale = BinaryPrimitives.ReadUInt16LittleEndian(data[4..]),
+            ReturnCode = BinaryPrimitives.ReadUInt64LittleEndian(data[8..])
         };
     }
 }

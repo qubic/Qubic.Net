@@ -445,7 +445,7 @@ public readonly struct SendToManyBenchmarkOutput : ISmartContractOutput<SendToMa
         {
             DstCount = BinaryPrimitives.ReadInt64LittleEndian(data[0..]),
             ReturnCode = BinaryPrimitives.ReadInt32LittleEndian(data[8..]),
-            Total = BinaryPrimitives.ReadInt64LittleEndian(data[12..])
+            Total = BinaryPrimitives.ReadInt64LittleEndian(data[16..])
         };
     }
 }

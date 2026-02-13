@@ -2,23 +2,25 @@ namespace Qubic.ContractGen.Parsing;
 
 public static class TypeMapper
 {
-    public record TypeInfo(string CSharpType, int Size, bool IsBlittable = true);
+    public record TypeInfo(string CSharpType, int Size, int Alignment, bool IsBlittable = true);
 
     private static readonly Dictionary<string, TypeInfo> PrimitiveTypes = new()
     {
-        ["id"] = new("byte[]", 32, false),
-        ["m256i"] = new("byte[]", 32, false),
-        ["uint64"] = new("ulong", 8),
-        ["sint64"] = new("long", 8),
-        ["uint32"] = new("uint", 4),
-        ["sint32"] = new("int", 4),
-        ["uint16"] = new("ushort", 2),
-        ["sint16"] = new("short", 2),
-        ["uint8"] = new("byte", 1),
-        ["sint8"] = new("sbyte", 1),
-        ["bit"] = new("bool", 1),
-        ["bool"] = new("bool", 1),
-        ["Asset"] = new("QubicAsset", 40, false),
+        // m256i is a union of uint64_t[4] etc → alignment is 8 (from uint64_t)
+        ["id"] = new("byte[]", 32, 8, false),
+        ["m256i"] = new("byte[]", 32, 8, false),
+        ["uint64"] = new("ulong", 8, 8),
+        ["sint64"] = new("long", 8, 8),
+        ["uint32"] = new("uint", 4, 4),
+        ["sint32"] = new("int", 4, 4),
+        ["uint16"] = new("ushort", 2, 2),
+        ["sint16"] = new("short", 2, 2),
+        ["uint8"] = new("byte", 1, 1),
+        ["sint8"] = new("sbyte", 1, 1),
+        ["bit"] = new("bool", 1, 1),
+        ["bool"] = new("bool", 1, 1),
+        // Asset contains id (m256i) → 8-byte alignment
+        ["Asset"] = new("QubicAsset", 40, 8, false),
     };
 
     public static bool IsPrimitive(string cppType) => PrimitiveTypes.ContainsKey(cppType);
@@ -39,6 +41,15 @@ public static class TypeMapper
     public static int GetPrimitiveSize(string cppType)
     {
         return PrimitiveTypes.TryGetValue(cppType, out var info) ? info.Size : -1;
+    }
+
+    /// <summary>
+    /// Returns the C++ alignment for a primitive type (matching MSVC default /Zp8).
+    /// For arrays, alignment is the element type's alignment.
+    /// </summary>
+    public static int GetPrimitiveAlignment(string cppType)
+    {
+        return PrimitiveTypes.TryGetValue(cppType, out var info) ? info.Alignment : 1;
     }
 
     public static string GetReadExpression(string cppType, string spanExpr)

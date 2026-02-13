@@ -1,0 +1,68 @@
+@inherits LayoutComponentBase
+@inject ScQueryService QueryService
+
+<div class="d-flex flex-column vh-100">
+    <nav class="navbar navbar-dark bg-dark px-3">
+        <span class="navbar-brand mb-0 h1">Qubic SC Tester</span>
+        <div class="d-flex align-items-center gap-3">
+            <select class="form-select form-select-sm bg-dark text-light border-secondary" style="width:auto"
+                    @bind="QueryService.ActiveBackend" @bind:after="OnBackendChanged">
+                <option value="@QueryBackend.Rpc">RPC</option>
+                <option value="@QueryBackend.Bob">Bob</option>
+                <option value="@QueryBackend.DirectNetwork">Direct Network</option>
+            </select>
+            @if (QueryService.ActiveBackend == QueryBackend.DirectNetwork)
+            {
+                <input class="form-control form-control-sm bg-dark text-light border-secondary" style="width:200px"
+                       placeholder="Host IP" @bind="QueryService.NodeHost" @bind:event="oninput" @bind:after="OnSettingsChanged" />
+                <input type="number" class="form-control form-control-sm bg-dark text-light border-secondary" style="width:80px"
+                       placeholder="Port" @bind="QueryService.NodePort" @bind:after="OnSettingsChanged" />
+            }
+            else
+            {
+                <input class="form-control form-control-sm bg-dark text-light border-secondary" style="width:300px"
+                       placeholder="URL" @bind="CurrentUrl" @bind:event="oninput" @bind:after="OnSettingsChanged" />
+            }
+            <span class="badge bg-secondary">@BackendLabel</span>
+        </div>
+    </nav>
+    <div class="d-flex flex-grow-1 overflow-hidden">
+        <NavMenu />
+        <main class="flex-grow-1 overflow-auto p-4">
+            @Body
+        </main>
+    </div>
+</div>
+
+@code {
+    private string CurrentUrl
+    {
+        get => QueryService.ActiveBackend == QueryBackend.Rpc ? QueryService.RpcUrl : QueryService.BobUrl;
+        set
+        {
+            if (QueryService.ActiveBackend == QueryBackend.Rpc)
+                QueryService.RpcUrl = value;
+            else
+                QueryService.BobUrl = value;
+        }
+    }
+
+    private string BackendLabel => QueryService.ActiveBackend switch
+    {
+        QueryBackend.Rpc => "RPC",
+        QueryBackend.Bob => "Bob",
+        QueryBackend.DirectNetwork => "TCP",
+        _ => "?"
+    };
+
+    private void OnBackendChanged()
+    {
+        QueryService.ResetClients();
+        StateHasChanged();
+    }
+
+    private void OnSettingsChanged()
+    {
+        QueryService.ResetClients();
+    }
+}

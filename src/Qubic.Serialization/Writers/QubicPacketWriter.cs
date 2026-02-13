@@ -88,6 +88,22 @@ public sealed class QubicPacketWriter
     }
 
     /// <summary>
+    /// Writes a request to invoke a smart contract function.
+    /// </summary>
+    public byte[] WriteRequestContractFunction(uint contractIndex, ushort inputType, byte[] inputData)
+    {
+        Reset();
+        var payloadSize = 4 + 2 + 2 + inputData.Length;
+        WriteHeader(QubicPacketTypes.RequestContractFunction, payloadSize);
+        _writer.Write(contractIndex);
+        _writer.Write(inputType);
+        _writer.Write((ushort)inputData.Length);
+        if (inputData.Length > 0)
+            _writer.Write(inputData);
+        return GetPacketBytes();
+    }
+
+    /// <summary>
     /// Writes a request for owned assets.
     /// </summary>
     public byte[] WriteRequestOwnedAssets(QubicIdentity identity)

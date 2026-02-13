@@ -15,6 +15,7 @@ public sealed class BobClient : IDisposable
     private readonly string _rpcEndpoint;
     private readonly JsonSerializerOptions _jsonOptions;
     private int _requestId;
+    private int _scQueryNonce = (int)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() & 0x7FFFFFFF);
 
     /// <summary>
     /// Creates a new BobClient with the specified base URL.
@@ -215,10 +216,45 @@ public sealed class BobClient : IDisposable
     }
 
     /// <summary>
-    /// Queries a smart contract's state.
+    /// Queries a smart contract function. Bob uses an async query model:
+    /// the first call enqueues the query, subsequent calls with the same nonce retrieve the result.
     /// </summary>
-    public Task<string> QuerySmartContractAsync(int contractIndex, string inputData, CancellationToken cancellationToken = default)
-        => CallAsync<string>("qubic_querySmartContract", new object[] { contractIndex, inputData }, cancellationToken);
+    /// <param name="contractIndex">Smart contract index (1-based).</param>
+    /// <param name="funcNumber">Function number (inputType) to call.</param>
+    /// <param name="hexData">Hex-encoded input data (without 0x prefix).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Hex-encoded output data.</returns>
+    public async Task<string> QuerySmartContractAsync(int contractIndex, int funcNumber, string hexData, CancellationToken cancellationToken = default)
+    {
+        var nonce = Interlocked.Increment(ref _scQueryNonce);
+        var parameters = new object[]
+        {
+            new Dictionary<string, object>
+            {
+                ["nonce"] = nonce,
+                ["scIndex"] = contractIndex,
+                ["funcNumber"] = funcNumber,
+                ["data"] = hexData
+            }
+        };
+
+        // Poll for up to ~5 seconds (50 attempts x 100ms)
+        for (int i = 0; i < 50; i++)
+        {
+            var result = await CallAsync<ScQueryResponse>("qubic_querySmartContract", parameters, cancellationToken);
+
+            if (result.Error is { } error)
+                throw new BobRpcException(-1, error);
+
+            if (result.Data != null)
+                return result.Data;
+
+            // Pending - wait and retry with same nonce
+            await Task.Delay(100, cancellationToken);
+        }
+
+        throw new BobRpcException(-1, "Smart contract query timed out");
+    }
 
     #endregion
 

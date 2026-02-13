@@ -119,7 +119,7 @@ public readonly struct GetNumberOfNFTForUserOutput : ISmartContractOutput<GetNum
 /// <summary>Input for query.</summary>
 public readonly struct GetInfoOfNFTUserPossessedInput : ISmartContractInput
 {
-    public const int Size = 36;
+    public const int Size = 40;
 
     public int SerializedSize => Size;
 
@@ -250,7 +250,7 @@ public readonly struct GetInfoOfMarketplaceOutput : ISmartContractOutput<GetInfo
 /// <summary>Input for query.</summary>
 public readonly struct GetInfoOfCollectionByCreatorInput : ISmartContractInput
 {
-    public const int Size = 36;
+    public const int Size = 40;
 
     public int SerializedSize => Size;
 
@@ -607,7 +607,7 @@ public readonly struct SettingCFBAndQubicPriceOutput : ISmartContractOutput<Sett
 /// <summary>Input payload for procedure.</summary>
 public sealed class CreateCollectionPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 85;
+    public const int Size = 88;
 
     public ushort InputType => 2;
     public ushort InputSize => Size;
@@ -657,7 +657,7 @@ public readonly struct CreateCollectionOutput : ISmartContractOutput<CreateColle
 /// <summary>Input payload for procedure.</summary>
 public sealed class MintPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 73;
+    public const int Size = 76;
 
     public ushort InputType => 3;
     public ushort InputSize => Size;
@@ -745,7 +745,7 @@ public readonly struct MintOfDropOutput : ISmartContractOutput<MintOfDropOutput>
 /// <summary>Input payload for procedure.</summary>
 public sealed class TransferPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 36;
+    public const int Size = 40;
 
     public ushort InputType => 5;
     public ushort InputSize => Size;
@@ -784,7 +784,7 @@ public readonly struct TransferOutput : ISmartContractOutput<TransferOutput>
 /// <summary>Input payload for procedure.</summary>
 public sealed class ListInMarketPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 12;
+    public const int Size = 16;
 
     public ushort InputType => 6;
     public ushort InputSize => Size;
@@ -823,7 +823,7 @@ public readonly struct ListInMarketOutput : ISmartContractOutput<ListInMarketOut
 /// <summary>Input payload for procedure.</summary>
 public sealed class BuyPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 5;
+    public const int Size = 8;
 
     public ushort InputType => 7;
     public ushort InputSize => Size;
@@ -977,7 +977,7 @@ public readonly struct CancelExchangeOutput : ISmartContractOutput<CancelExchang
 /// <summary>Input payload for procedure.</summary>
 public sealed class MakeOfferPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 13;
+    public const int Size = 16;
 
     public ushort InputType => 11;
     public ushort InputSize => Size;
@@ -1092,7 +1092,7 @@ public readonly struct CancelOfferOutput : ISmartContractOutput<CancelOfferOutpu
 /// <summary>Input payload for procedure.</summary>
 public sealed class CreateTraditionalAuctionPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 45;
+    public const int Size = 48;
 
     public ushort InputType => 14;
     public ushort InputSize => Size;
@@ -1149,7 +1149,7 @@ public readonly struct CreateTraditionalAuctionOutput : ISmartContractOutput<Cre
 /// <summary>Input payload for procedure.</summary>
 public sealed class BidOnTraditionalAuctionPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 13;
+    public const int Size = 16;
 
     public ushort InputType => 15;
     public ushort InputSize => Size;
@@ -1190,7 +1190,7 @@ public readonly struct BidOnTraditionalAuctionOutput : ISmartContractOutput<BidO
 /// <summary>Input payload for procedure.</summary>
 public sealed class TransferShareManagementRightsPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 52;
+    public const int Size = 56;
 
     public ushort InputType => 16;
     public ushort InputSize => Size;

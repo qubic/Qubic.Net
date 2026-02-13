@@ -1,0 +1,21 @@
+@inject ContractDiscovery Discovery
+
+<nav class="bg-light border-end overflow-auto" style="width:220px; min-width:220px;">
+    <div class="p-2">
+        <NavLink class="nav-link px-2 py-1 rounded" href="/" Match="NavLinkMatch.All">
+            <strong>Home</strong>
+        </NavLink>
+        <NavLink class="nav-link px-2 py-1 rounded text-success" href="/smoke-test">
+            Smoke Test
+        </NavLink>
+        <hr class="my-2" />
+        <div class="small text-muted px-2 mb-1">Contracts</div>
+        @foreach (var contract in Discovery.Contracts)
+        {
+            <NavLink class="nav-link px-2 py-1 rounded small" href="@($"/contract/{contract.ContractIndex}")">
+                <span class="text-muted">[@contract.ContractIndex]</span> @contract.Name
+                <span class="badge bg-secondary float-end">@contract.Functions.Count</span>
+            </NavLink>
+        }
+    </div>
+</nav>

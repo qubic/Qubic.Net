@@ -81,6 +81,24 @@ public sealed class QubicNodeClient : IDisposable, IAsyncDisposable
     }
 
     /// <summary>
+    /// Queries a smart contract function via direct TCP.
+    /// Returns the raw output bytes. Throws if the invocation fails (empty response).
+    /// </summary>
+    public async Task<byte[]> QuerySmartContractAsync(uint contractIndex, uint inputType, byte[] requestData, CancellationToken cancellationToken = default)
+    {
+        EnsureConnected();
+
+        var requestPacket = _writer.WriteRequestContractFunction(contractIndex, (ushort)inputType, requestData);
+        var response = await SendAndReceiveAsync(requestPacket, QubicPacketTypes.RespondContractFunction, cancellationToken);
+
+        var header = _reader.ReadHeader(response);
+        if (header.PayloadSize == 0)
+            throw new InvalidOperationException("Contract function invocation failed (empty response).");
+
+        return response.AsSpan(QubicPacketHeader.Size, header.PayloadSize).ToArray();
+    }
+
+    /// <summary>
     /// Broadcasts a signed transaction to the network.
     /// </summary>
     public async Task BroadcastTransactionAsync(QubicTransaction transaction, CancellationToken cancellationToken = default)

@@ -379,7 +379,7 @@ public readonly struct GetInfoUserInvestedOutput : ISmartContractOutput<GetInfoU
 /// <summary>Input for query.</summary>
 public readonly struct GetMaxClaimAmountInput : ISmartContractInput
 {
-    public const int Size = 36;
+    public const int Size = 40;
 
     public int SerializedSize => Size;
 
@@ -532,7 +532,7 @@ public readonly struct CreateProjectOutput : ISmartContractOutput<CreateProjectO
 /// <summary>Input payload for procedure.</summary>
 public sealed class VoteInProjectPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 5;
+    public const int Size = 8;
 
     public ushort InputType => 4;
     public ushort InputSize => Size;
@@ -563,7 +563,7 @@ public readonly struct VoteInProjectOutput : ISmartContractOutput<VoteInProjectO
 /// <summary>Input payload for procedure.</summary>
 public sealed class CreateFundraisingPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 175;
+    public const int Size = 176;
 
     public ushort InputType => 5;
     public ushort InputSize => Size;
@@ -705,7 +705,7 @@ public readonly struct InvestInProjectOutput : ISmartContractOutput<InvestInProj
 /// <summary>Input payload for procedure.</summary>
 public sealed class ClaimTokenPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 12;
+    public const int Size = 16;
 
     public ushort InputType => 7;
     public ushort InputSize => Size;
@@ -773,7 +773,7 @@ public readonly struct UpgradeTierOutput : ISmartContractOutput<UpgradeTierOutpu
 /// <summary>Input payload for procedure.</summary>
 public sealed class TransferShareManagementRightsPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 52;
+    public const int Size = 56;
 
     public ushort InputType => 9;
     public ushort InputSize => Size;

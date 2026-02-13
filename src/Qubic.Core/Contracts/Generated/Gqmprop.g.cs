@@ -48,7 +48,7 @@ public static class GqmpropContract
 /// <summary>Input for query.</summary>
 public readonly struct GetProposalIndicesInput : ISmartContractInput
 {
-    public const int Size = 5;
+    public const int Size = 8;
 
     public int SerializedSize => Size;
 
@@ -59,7 +59,7 @@ public readonly struct GetProposalIndicesInput : ISmartContractInput
     {
         var bytes = new byte[Size];
         bytes.AsSpan(0, 1)[0] = (byte)(ActiveProposals ? 1 : 0);
-        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(1), PrevProposalIndex);
+        BinaryPrimitives.WriteInt32LittleEndian(bytes.AsSpan(4), PrevProposalIndex);
         return bytes;
     }
 }
@@ -148,7 +148,7 @@ public readonly struct GetProposalOutput : ISmartContractOutput<GetProposalOutpu
 /// <summary>Input for query.</summary>
 public readonly struct GetVoteInput : ISmartContractInput
 {
-    public const int Size = 34;
+    public const int Size = 40;
 
     public int SerializedSize => Size;
 
@@ -217,6 +217,26 @@ public readonly struct GetVotingResultsOutput : ISmartContractOutput<GetVotingRe
 
 // ═══ Function: GetRevenueDonation (inputType=5) ═══
 
+/// <summary>Nested type from GetRevenueDonation.</summary>
+public readonly struct GetRevenueDonationRevenueDonationEntry
+{
+    public const int Size = 48;
+
+    public required byte[] DestinationPublicKey { get; init; }
+    public long MillionthAmount { get; init; }
+    public ushort FirstEpoch { get; init; }
+
+    public static GetRevenueDonationRevenueDonationEntry ReadFrom(ReadOnlySpan<byte> data)
+    {
+        return new GetRevenueDonationRevenueDonationEntry
+        {
+            DestinationPublicKey = data[0..].Slice(0, 32).ToArray(),
+            MillionthAmount = BinaryPrimitives.ReadInt64LittleEndian(data[32..]),
+            FirstEpoch = BinaryPrimitives.ReadUInt16LittleEndian(data[40..])
+        };
+    }
+}
+
 /// <summary>Input for query (empty).</summary>
 public readonly struct GetRevenueDonationInput : ISmartContractInput
 {
@@ -224,10 +244,23 @@ public readonly struct GetRevenueDonationInput : ISmartContractInput
     public byte[] ToBytes() => [];
 }
 
-/// <summary>Output (empty).</summary>
+/// <summary>Output.</summary>
 public readonly struct GetRevenueDonationOutput : ISmartContractOutput<GetRevenueDonationOutput>
 {
-    public static GetRevenueDonationOutput FromBytes(ReadOnlySpan<byte> data) => new();
+    public GetRevenueDonationRevenueDonationEntry[] Entries { get; init; }
+
+    public static GetRevenueDonationOutput FromBytes(ReadOnlySpan<byte> data)
+    {
+        var entries = new GetRevenueDonationRevenueDonationEntry[128];
+        for (int i = 0; i < 128; i++)
+        {
+            entries[i] = GetRevenueDonationRevenueDonationEntry.ReadFrom(data.Slice(0 + i * GetRevenueDonationRevenueDonationEntry.Size, GetRevenueDonationRevenueDonationEntry.Size));
+        }
+        return new GetRevenueDonationOutput
+        {
+            Entries = entries
+        };
+    }
 }
 
 // ═══ Procedure: SetProposal (inputType=1) ═══

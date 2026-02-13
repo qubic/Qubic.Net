@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Qubic.Serialization" Version="1.0.0" />
+    <ProjectReference Include="..\Qubic.Serialization\Qubic.Serialization.csproj" />
   </ItemGroup>
 
 </Project>

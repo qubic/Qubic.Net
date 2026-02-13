@@ -608,7 +608,7 @@ public readonly struct SubmitProposalOutput : ISmartContractOutput<SubmitProposa
 /// <summary>Input payload for procedure.</summary>
 public sealed class VoteInProposalPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 5;
+    public const int Size = 8;
 
     public ushort InputType => 5;
     public ushort InputSize => Size;
@@ -710,7 +710,7 @@ public readonly struct DepositInTokenRaffleOutput : ISmartContractOutput<Deposit
 /// <summary>Input payload for procedure.</summary>
 public sealed class TransferShareManagementRightsPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 52;
+    public const int Size = 56;
 
     public ushort InputType => 8;
     public ushort InputSize => Size;

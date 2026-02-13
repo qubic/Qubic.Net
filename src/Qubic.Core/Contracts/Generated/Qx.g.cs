@@ -333,7 +333,7 @@ public readonly struct EntityBidOrdersOutput : ISmartContractOutput<EntityBidOrd
 /// <summary>Input payload for procedure.</summary>
 public sealed class IssueAssetPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 25;
+    public const int Size = 32;
 
     public ushort InputType => 1;
     public ushort InputSize => Size;
@@ -591,7 +591,7 @@ public readonly struct RemoveFromBidOrderOutput : ISmartContractOutput<RemoveFro
 /// <summary>Input payload for procedure.</summary>
 public sealed class TransferShareManagementRightsPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 52;
+    public const int Size = 56;
 
     public ushort InputType => 9;
     public ushort InputSize => Size;

@@ -285,14 +285,17 @@ public class CSharpEmitter
 
     private void EmitToBytesMethod(StructDef def, int totalSize)
     {
+        var fieldOffsets = ComputeFieldOffsets(def, out _, out _);
+
         Line($"public byte[] ToBytes()");
         Line("{");
         _indent++;
         Line($"var bytes = new byte[Size];");
 
-        int offset = 0;
-        foreach (var field in def.Fields)
+        for (int fi = 0; fi < def.Fields.Count; fi++)
         {
+            var field = def.Fields[fi];
+            var offset = fieldOffsets[fi];
             var propName = ToPascalCase(field.Name);
 
             if (field.IsArray)
@@ -317,7 +320,6 @@ public class CSharpEmitter
                     Line($"// Array<{field.ArrayElementType}, {field.ArrayLength}> - {propName}");
                     Line($"// TODO: serialize nested struct array");
                 }
-                offset += elemSize * field.ArrayLength;
             }
             else if (TypeMapper.IsPrimitive(field.CppType))
             {
@@ -326,7 +328,6 @@ public class CSharpEmitter
                     ? $"bytes.AsSpan({offset}, 1)"
                     : $"bytes.AsSpan({offset})";
                 Line(TypeMapper.GetWriteStatement(field.CppType, spanExpr, propName));
-                offset += size;
             }
             else
             {
@@ -342,15 +343,18 @@ public class CSharpEmitter
 
     private void EmitFromBytesMethod(string structName, StructDef def, string parentName)
     {
+        var fieldOffsets = ComputeFieldOffsets(def, out _, out _);
+
         Line($"public static {structName} FromBytes(ReadOnlySpan<byte> data)");
         Line("{");
         _indent++;
 
-        int offset = 0;
         var assignments = new List<string>();
 
-        foreach (var field in def.Fields)
+        for (int fi = 0; fi < def.Fields.Count; fi++)
         {
+            var field = def.Fields[fi];
+            var offset = fieldOffsets[fi];
             var propName = ToPascalCase(field.Name);
 
             if (field.IsArray)
@@ -399,7 +403,6 @@ public class CSharpEmitter
                         assignments.Add($"{propName} = [] /* unknown struct array {elemType} */");
                     }
                 }
-                offset += elemSize * field.ArrayLength;
             }
             else if (TypeMapper.IsPrimitive(field.CppType))
             {
@@ -409,7 +412,6 @@ public class CSharpEmitter
                     : $"data[{offset}..]";
                 var readExpr = TypeMapper.GetReadExpression(field.CppType, spanSlice);
                 assignments.Add($"{propName} = {readExpr}");
-                offset += size;
             }
             else
             {
@@ -435,23 +437,60 @@ public class CSharpEmitter
 
     private void EmitReadFromMethod(string structName, StructDef def)
     {
+        var fieldOffsets = ComputeFieldOffsets(def, out _, out _);
+
         Line($"public static {structName} ReadFrom(ReadOnlySpan<byte> data)");
         Line("{");
         _indent++;
 
-        int offset = 0;
         var assignments = new List<string>();
 
-        foreach (var field in def.Fields)
+        for (int fi = 0; fi < def.Fields.Count; fi++)
         {
+            var field = def.Fields[fi];
+            var offset = fieldOffsets[fi];
             var propName = ToPascalCase(field.Name);
-            var size = GetTypeSize(field.CppType);
-            var spanSlice = size == 1
-                ? $"data.Slice({offset}, 1)"
-                : $"data[{offset}..]";
-            var readExpr = TypeMapper.GetReadExpression(field.CppType, spanSlice);
-            assignments.Add($"{propName} = {readExpr}");
-            offset += size;
+
+            if (field.IsArray)
+            {
+                var elemType = field.ArrayElementType ?? field.CppType;
+                var elemSize = GetTypeSize(elemType);
+
+                if (TypeMapper.IsPrimitive(elemType))
+                {
+                    var csElemType = TypeMapper.GetCSharpType(elemType);
+                    Line($"var {CamelCase(field.Name)} = {NewArrayExpr(csElemType, field.ArrayLength)};");
+                    Line($"for (int i = 0; i < {field.ArrayLength}; i++)");
+                    Line("{");
+                    _indent++;
+                    var readExpr = TypeMapper.GetReadExpression(elemType,
+                        elemSize == 1
+                            ? $"data.Slice({offset} + i * {elemSize}, {elemSize})"
+                            : $"data[({offset} + i * {elemSize})..]");
+                    Line($"{CamelCase(field.Name)}[i] = {readExpr};");
+                    _indent--;
+                    Line("}");
+                    assignments.Add($"{propName} = {CamelCase(field.Name)}");
+                }
+                else
+                {
+                    // Unknown struct array in nested struct - raw bytes fallback
+                    var totalBytes = elemSize > 0 ? elemSize * field.ArrayLength : 0;
+                    if (totalBytes > 0)
+                        assignments.Add($"{propName} = data.Slice({offset}, {totalBytes}).ToArray()");
+                    else
+                        assignments.Add($"{propName} = []");
+                }
+            }
+            else
+            {
+                var size = GetTypeSize(field.CppType);
+                var spanSlice = size == 1
+                    ? $"data.Slice({offset}, 1)"
+                    : $"data[{offset}..]";
+                var readExpr = TypeMapper.GetReadExpression(field.CppType, spanSlice);
+                assignments.Add($"{propName} = {readExpr}");
+            }
         }
 
         Line($"return new {structName}");
@@ -546,29 +585,78 @@ public class CSharpEmitter
         return 0;
     }
 
-    private int ComputeStructSize(StructDef def)
+    private int GetTypeAlignment(string cppType)
     {
-        int size = 0;
+        return TypeMapper.GetPrimitiveAlignment(cppType);
+    }
+
+    /// <summary>Round up to the next multiple of alignment.</summary>
+    private static int AlignUp(int value, int alignment)
+    {
+        if (alignment <= 1) return value;
+        return (value + alignment - 1) / alignment * alignment;
+    }
+
+    /// <summary>
+    /// Compute field offsets with C++ alignment rules (MSVC default /Zp8).
+    /// Each field is aligned to its natural alignment, and the struct size
+    /// is padded to a multiple of the struct's max member alignment.
+    /// </summary>
+    private List<int> ComputeFieldOffsets(StructDef def, out int totalSize, out int structAlignment)
+    {
+        var offsets = new List<int>();
+        int offset = 0;
+        int maxAlign = 1;
+
         foreach (var field in def.Fields)
         {
+            int fieldAlign;
+            int fieldSize;
+
             if (field.IsArray)
             {
-                var elemSize = GetTypeSize(field.ArrayElementType ?? field.CppType);
-                // If element is a nested struct, try to find its size from nested structs
+                var elemType = field.ArrayElementType ?? field.CppType;
+                var elemSize = GetTypeSize(elemType);
+                // Array alignment = element alignment
+                fieldAlign = TypeMapper.IsPrimitive(elemType) ? GetTypeAlignment(elemType) : 1;
+
                 if (elemSize == 0 && field.NestedStructTypeName != null)
                 {
                     var nestedDef = def.NestedStructs.FirstOrDefault(n => n.CppName == field.NestedStructTypeName);
                     if (nestedDef != null)
-                        elemSize = ComputeStructSize(nestedDef);
+                    {
+                        ComputeFieldOffsets(nestedDef, out var nestedSize, out var nestedAlign);
+                        elemSize = nestedSize;
+                        fieldAlign = nestedAlign;
+                    }
                 }
-                size += elemSize * field.ArrayLength;
+
+                fieldSize = elemSize * field.ArrayLength;
             }
             else
             {
-                size += GetTypeSize(field.CppType);
+                fieldSize = GetTypeSize(field.CppType);
+                fieldAlign = TypeMapper.IsPrimitive(field.CppType) ? GetTypeAlignment(field.CppType) : 1;
             }
+
+            // Align the offset for this field
+            offset = AlignUp(offset, fieldAlign);
+            offsets.Add(offset);
+            offset += fieldSize;
+
+            if (fieldAlign > maxAlign) maxAlign = fieldAlign;
         }
-        return size;
+
+        // Pad struct to alignment boundary (required for arrays of this struct)
+        structAlignment = maxAlign;
+        totalSize = AlignUp(offset, maxAlign);
+        return offsets;
+    }
+
+    private int ComputeStructSize(StructDef def)
+    {
+        ComputeFieldOffsets(def, out var totalSize, out _);
+        return totalSize;
     }
 
     private bool HasRequiredInit(FieldDef field)

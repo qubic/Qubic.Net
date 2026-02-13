@@ -1,0 +1,162 @@
+@page "/smoke-test"
+@inject ContractDiscovery Discovery
+@inject ScQueryService QueryService
+
+<h4>Smoke Test</h4>
+<p class="text-muted">Calls all empty-input functions and reports results.</p>
+
+<div class="mb-3 d-flex align-items-center gap-3">
+    <button class="btn btn-primary" @onclick="RunAll" disabled="@_running">
+        @(_running ? "Running..." : "Run All")
+    </button>
+    @if (_results.Count > 0)
+    {
+        <span class="badge bg-success">@_results.Count(r => r.Success) passed</span>
+        <span class="badge bg-danger">@_results.Count(r => !r.Success && !r.Skipped) failed</span>
+        <span class="badge bg-warning text-dark">@_results.Count(r => r.Skipped) skipped</span>
+        @if (_totalElapsed > 0)
+        {
+            <span class="text-muted small">@_totalElapsed ms total</span>
+        }
+    }
+</div>
+
+@if (_running)
+{
+    <div class="progress mb-3" style="height: 6px;">
+        <div class="progress-bar" role="progressbar"
+             style="width: @(_totalFunctions > 0 ? (int)(_completedCount * 100.0 / _totalFunctions) : 0)%">
+        </div>
+    </div>
+    <div class="text-muted small mb-2">@_currentTest</div>
+}
+
+@if (_results.Count > 0)
+{
+    <table class="table table-sm table-hover">
+        <thead>
+            <tr>
+                <th>Contract</th>
+                <th>Function</th>
+                <th>InputType</th>
+                <th>Status</th>
+                <th>Bytes</th>
+                <th>Time</th>
+                <th>Error</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in _results)
+            {
+                <tr class="@(r.Success ? "" : r.Skipped ? "table-warning" : "table-danger")">
+                    <td>[@r.ContractIndex] @r.ContractName</td>
+                    <td>@r.FunctionName</td>
+                    <td>@r.InputTypeId</td>
+                    <td>
+                        @if (r.Skipped)
+                        {
+                            <span class="badge status-skip">Skip</span>
+                        }
+                        else if (r.Success)
+                        {
+                            <span class="badge status-pass">Pass</span>
+                        }
+                        else
+                        {
+                            <span class="badge status-fail">Fail</span>
+                        }
+                    </td>
+                    <td>@(r.ResponseBytes > 0 ? r.ResponseBytes.ToString() : "-")</td>
+                    <td>@(r.ElapsedMs > 0 ? $"{r.ElapsedMs} ms" : "-")</td>
+                    <td class="small text-danger">@r.Error</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private bool _running;
+    private int _completedCount;
+    private int _totalFunctions;
+    private long _totalElapsed;
+    private string _currentTest = "";
+    private readonly List<SmokeTestResult> _results = [];
+
+    private async Task RunAll()
+    {
+        _running = true;
+        _results.Clear();
+        _completedCount = 0;
+        _totalElapsed = 0;
+
+        var allFunctions = Discovery.Contracts
+            .SelectMany(c => c.Functions.Select(f => (Contract: c, Function: f)))
+            .ToList();
+        _totalFunctions = allFunctions.Count;
+
+        foreach (var (contract, func) in allFunctions)
+        {
+            _currentTest = $"{contract.Name}.{func.Name}";
+            StateHasChanged();
+            await Task.Delay(1); // yield for UI update
+
+            var result = new SmokeTestResult
+            {
+                ContractIndex = contract.ContractIndex,
+                ContractName = contract.Name,
+                FunctionName = func.Name,
+                InputTypeId = func.InputTypeId
+            };
+
+            if (!func.IsEmptyInput)
+            {
+                result.Skipped = true;
+                _results.Add(result);
+                _completedCount++;
+                continue;
+            }
+
+            try
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var data = await QueryService.QueryAsync(
+                    (uint)contract.ContractIndex, func.InputTypeId, []);
+                sw.Stop();
+
+                var output = ContractDiscovery.CallFromBytes(func.OutputType, data);
+                result.Success = output != null;
+                result.ResponseBytes = data.Length;
+                result.ElapsedMs = sw.ElapsedMilliseconds;
+                _totalElapsed += result.ElapsedMs;
+
+                if (output == null)
+                    result.Error = "Deserialization returned null";
+            }
+            catch (Exception ex)
+            {
+                result.Success = false;
+                result.Error = ex.Message.Length > 120 ? ex.Message[..120] + "..." : ex.Message;
+            }
+
+            _results.Add(result);
+            _completedCount++;
+        }
+
+        _currentTest = "";
+        _running = false;
+    }
+
+    private class SmokeTestResult
+    {
+        public int ContractIndex { get; set; }
+        public string ContractName { get; set; } = "";
+        public string FunctionName { get; set; } = "";
+        public uint InputTypeId { get; set; }
+        public bool Success { get; set; }
+        public bool Skipped { get; set; }
+        public int ResponseBytes { get; set; }
+        public long ElapsedMs { get; set; }
+        public string? Error { get; set; }
+    }
+}

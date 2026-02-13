@@ -211,7 +211,7 @@ public readonly struct GetOrdersOutput : ISmartContractOutput<GetOrdersOutput>
         var bidOrders = new GetOrdersOrder[256];
         for (int i = 0; i < 256; i++)
         {
-            bidOrders[i] = GetOrdersOrder.ReadFrom(data.Slice(0 + i * GetOrdersOrder.Size, GetOrdersOrder.Size));
+            bidOrders[i] = GetOrdersOrder.ReadFrom(data.Slice(14336 + i * GetOrdersOrder.Size, GetOrdersOrder.Size));
         }
         return new GetOrdersOutput
         {
@@ -282,7 +282,7 @@ public readonly struct GetUserOrdersOutput : ISmartContractOutput<GetUserOrdersO
         var bidOrders = new GetUserOrdersOrder[256];
         for (int i = 0; i < 256; i++)
         {
-            bidOrders[i] = GetUserOrdersOrder.ReadFrom(data.Slice(0 + i * GetUserOrdersOrder.Size, GetUserOrdersOrder.Size));
+            bidOrders[i] = GetUserOrdersOrder.ReadFrom(data.Slice(14336 + i * GetUserOrdersOrder.Size, GetUserOrdersOrder.Size));
         }
         return new GetUserOrdersOutput
         {
@@ -706,7 +706,7 @@ public readonly struct BurnQUOutput : ISmartContractOutput<BurnQUOutput>
 /// <summary>Input payload for procedure.</summary>
 public sealed class UpdateCFAPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 33;
+    public const int Size = 40;
 
     public ushort InputType => 8;
     public ushort InputSize => Size;

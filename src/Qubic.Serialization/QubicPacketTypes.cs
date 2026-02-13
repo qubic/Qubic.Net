@@ -27,6 +27,8 @@ public static class QubicPacketTypes
     public const byte RespondOwnedAssets = 39;
     public const byte RequestPossessedAssets = 40;
     public const byte RespondPossessedAssets = 41;
+    public const byte RequestContractFunction = 42;
+    public const byte RespondContractFunction = 43;
 
     // Response types
     public const byte RespondCurrentTickInfo = 28;

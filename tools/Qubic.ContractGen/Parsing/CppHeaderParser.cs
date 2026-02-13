@@ -6,6 +6,8 @@ public class CppHeaderParser
 {
     private readonly Dictionary<string, long> _constants = new();
     private readonly Dictionary<string, StructDef> _fileStructs = new();
+    private readonly Dictionary<string, string> _fileTypedefs = new(); // typedef aliases: Name -> target type string
+    private readonly Dictionary<string, string> _contractTypedefs = new(); // typedefs inside the contract struct
     private readonly List<string> _warnings = [];
 
     public List<string> Warnings => _warnings;
@@ -157,6 +159,23 @@ public class CppHeaderParser
 
     private void CollectFileStructs(string[] lines, string contractStructName)
     {
+        // Collect typedef aliases at file scope (e.g., typedef Array<T,N> Name;)
+        var typedefAliasRe = new Regex(@"^\s*typedef\s+(.+?)\s+(\w+)\s*;");
+        for (int j = 0; j < lines.Length; j++)
+        {
+            var l = StripComment(lines[j]).Trim();
+            var tm = typedefAliasRe.Match(l);
+            if (tm.Success)
+            {
+                var target = tm.Groups[1].Value.Trim();
+                var name = tm.Groups[2].Value;
+                // Skip _input/_output typedefs (handled separately in ParseContractStructs)
+                if (name.EndsWith("_input") || name.EndsWith("_output"))
+                    continue;
+                _fileTypedefs[name] = target;
+            }
+        }
+
         // Collect struct definitions at file scope (outside the contract struct)
         var structRe = new Regex(@"^struct\s+(\w+)\s*\{?\s*$");
         int i = 0;
@@ -331,18 +350,32 @@ public class CppHeaderParser
                 continue;
             }
 
-            // Inside a _input/_output struct
+            // Inside a _input/_output struct (or __internal__ struct)
             if (currentStructName != null)
             {
                 if (braceClose > 0 && depth <= structDepth)
                 {
                     // Closing the struct
-                    result[currentStructName] = new StructDef
+                    var closedDef = new StructDef
                     {
                         CppName = currentStructName,
                         Fields = currentFields ?? [],
                         NestedStructs = currentNested ?? []
                     };
+
+                    if (currentStructName.StartsWith("__internal__"))
+                    {
+                        // Populate _contractInternalStructs immediately so they're
+                        // available during ResolveTypedefToStruct calls
+                        var realName = currentStructName["__internal__".Length..];
+                        closedDef.CppName = realName;
+                        _contractInternalStructs[realName] = closedDef;
+                    }
+                    else
+                    {
+                        result[currentStructName] = closedDef;
+                    }
+
                     currentStructName = null;
                     currentFields = null;
                     currentNested = null;
@@ -390,6 +423,22 @@ public class CppHeaderParser
                 currentNested = [];
                 structDepth = depth;
                 continue;
+            }
+
+            // Collect non-_input/_output typedefs at contract level (e.g., typedef Array<T,N> NameT)
+            if (depth == 1 && currentStructName == null && line.StartsWith("typedef"))
+            {
+                var generalTypedefRe = new Regex(@"typedef\s+(.+?)\s+(\w+)\s*;");
+                var gtm = generalTypedefRe.Match(line);
+                if (gtm.Success)
+                {
+                    var target = gtm.Groups[1].Value.Trim();
+                    var name = gtm.Groups[2].Value;
+                    if (!name.EndsWith("_input") && !name.EndsWith("_output"))
+                    {
+                        _contractTypedefs[name] = target;
+                    }
+                }
             }
         }
 
@@ -446,6 +495,53 @@ public class CppHeaderParser
         // Check if it's a contract-internal struct
         if (_contractInternalStructs.TryGetValue(sourceType, out var cisd))
             return cisd;
+
+        // Check if it's a file-level typedef alias (e.g., typedef Array<T,N> Name)
+        if (_fileTypedefs.TryGetValue(sourceType, out var typedefTarget))
+            return ResolveTypedefToStruct(typedefTarget);
+
+        // Check if it's a contract-internal typedef (e.g., typedef Array<T,N> NameT inside contract)
+        if (_contractTypedefs.TryGetValue(sourceType, out var contractTypedefTarget))
+            return ResolveTypedefToStruct(contractTypedefTarget);
+
+        // Check if it's an Array<T, N> pattern directly
+        var arrayRe = new Regex(@"^Array\s*<\s*(\w+)\s*,\s*(.+?)\s*>$");
+        var am = arrayRe.Match(sourceType);
+        if (am.Success)
+        {
+            var elemType = am.Groups[1].Value;
+            var sizeExpr = am.Groups[2].Value;
+            int arrayLen = 0;
+            if (TryEvaluateExpr(sizeExpr, out var sz))
+                arrayLen = (int)sz;
+
+            // Resolve the element type struct if it's not primitive
+            var nestedStructs = new List<StructDef>();
+            if (!TypeMapper.IsPrimitive(elemType))
+            {
+                if (_fileStructs.TryGetValue(elemType, out var elemStruct))
+                    nestedStructs.Add(elemStruct);
+                else if (_contractInternalStructs.TryGetValue(elemType, out var ciElemStruct))
+                    nestedStructs.Add(ciElemStruct);
+            }
+
+            return new StructDef
+            {
+                CppName = sourceType,
+                IsTypedef = true,
+                TypedefTarget = sourceType,
+                Fields = [new FieldDef
+                {
+                    CppType = elemType,
+                    Name = "entries",
+                    IsArray = true,
+                    ArrayElementType = elemType,
+                    ArrayLength = arrayLen,
+                    NestedStructTypeName = TypeMapper.IsPrimitive(elemType) ? null : elemType
+                }],
+                NestedStructs = nestedStructs
+            };
+        }
 
         // Unknown typedef - warn and return empty
         _warnings.Add($"Unknown typedef source type: {sourceType}");

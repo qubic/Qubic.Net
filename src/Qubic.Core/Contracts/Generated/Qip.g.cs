@@ -139,7 +139,7 @@ public readonly struct GetICOInfoOutput : ISmartContractOutput<GetICOInfoOutput>
 /// <summary>Input payload for procedure.</summary>
 public sealed class CreateICOPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 452;
+    public const int Size = 456;
 
     public ushort InputType => 1;
     public ushort InputSize => Size;
@@ -232,7 +232,7 @@ public readonly struct CreateICOOutput : ISmartContractOutput<CreateICOOutput>
 /// <summary>Input payload for procedure.</summary>
 public sealed class BuyTokenPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 12;
+    public const int Size = 16;
 
     public ushort InputType => 2;
     public ushort InputSize => Size;
@@ -247,7 +247,7 @@ public sealed class BuyTokenPayload : ITransactionPayload, ISmartContractInput
     {
         var bytes = new byte[Size];
         BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(0), IndexOfICO);
-        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(4), Amount);
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(8), Amount);
         return bytes;
     }
 }
@@ -271,7 +271,7 @@ public readonly struct BuyTokenOutput : ISmartContractOutput<BuyTokenOutput>
 /// <summary>Input payload for procedure.</summary>
 public sealed class TransferShareManagementRightsPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 52;
+    public const int Size = 56;
 
     public ushort InputType => 3;
     public ushort InputSize => Size;

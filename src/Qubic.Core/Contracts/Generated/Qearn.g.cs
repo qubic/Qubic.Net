@@ -95,7 +95,7 @@ public readonly struct GetLockInfoPerEpochOutput : ISmartContractOutput<GetLockI
 /// <summary>Input for query.</summary>
 public readonly struct GetUserLockedInfoInput : ISmartContractInput
 {
-    public const int Size = 36;
+    public const int Size = 40;
 
     public int SerializedSize => Size;
 
@@ -376,7 +376,7 @@ public readonly struct LockOutput : ISmartContractOutput<LockOutput>
 /// <summary>Input payload for procedure.</summary>
 public sealed class UnlockPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 12;
+    public const int Size = 16;
 
     public ushort InputType => 2;
     public ushort InputSize => Size;

@@ -1,0 +1,47 @@
+/* Nav link active state */
+.nav-link.active {
+    background-color: #e9ecef;
+    font-weight: 600;
+}
+
+/* Compact cards */
+.card-header {
+    padding: 0.4rem 0.75rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* Output table */
+.output-table td:first-child {
+    font-weight: 500;
+    white-space: nowrap;
+    width: 1%;
+}
+
+.output-table td:nth-child(2) {
+    color: #6c757d;
+    white-space: nowrap;
+    width: 1%;
+}
+
+/* Monospace values */
+.mono {
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.85em;
+    word-break: break-all;
+}
+
+/* Function card styling */
+.fn-card {
+    border-left: 3px solid #0d6efd;
+}
+
+.fn-card.empty-input {
+    border-left-color: #198754;
+}
+
+/* Smoke test status badges */
+.status-pass { background-color: #198754; }
+.status-fail { background-color: #dc3545; }
+.status-skip { background-color: #ffc107; color: #000; }
+.status-running { background-color: #0d6efd; }

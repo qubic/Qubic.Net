@@ -86,16 +86,16 @@ public readonly struct BasicInfoOutput : ISmartContractOutput<BasicInfoOutput>
             MinBetSlotAmount = BinaryPrimitives.ReadUInt64LittleEndian(data[24..]),
             BurnFee = BinaryPrimitives.ReadUInt64LittleEndian(data[32..]),
             NIssuedBet = BinaryPrimitives.ReadUInt32LittleEndian(data[40..]),
-            MoneyFlow = BinaryPrimitives.ReadUInt64LittleEndian(data[44..]),
-            MoneyFlowThroughIssueBet = BinaryPrimitives.ReadUInt64LittleEndian(data[52..]),
-            MoneyFlowThroughJoinBet = BinaryPrimitives.ReadUInt64LittleEndian(data[60..]),
-            MoneyFlowThroughFinalizeBet = BinaryPrimitives.ReadUInt64LittleEndian(data[68..]),
-            EarnedAmountForShareHolder = BinaryPrimitives.ReadUInt64LittleEndian(data[76..]),
-            PaidAmountForShareHolder = BinaryPrimitives.ReadUInt64LittleEndian(data[84..]),
-            EarnedAmountForBetWinner = BinaryPrimitives.ReadUInt64LittleEndian(data[92..]),
-            DistributedAmount = BinaryPrimitives.ReadUInt64LittleEndian(data[100..]),
-            BurnedAmount = BinaryPrimitives.ReadUInt64LittleEndian(data[108..]),
-            GameOperator = data[116..].Slice(0, 32).ToArray()
+            MoneyFlow = BinaryPrimitives.ReadUInt64LittleEndian(data[48..]),
+            MoneyFlowThroughIssueBet = BinaryPrimitives.ReadUInt64LittleEndian(data[56..]),
+            MoneyFlowThroughJoinBet = BinaryPrimitives.ReadUInt64LittleEndian(data[64..]),
+            MoneyFlowThroughFinalizeBet = BinaryPrimitives.ReadUInt64LittleEndian(data[72..]),
+            EarnedAmountForShareHolder = BinaryPrimitives.ReadUInt64LittleEndian(data[80..]),
+            PaidAmountForShareHolder = BinaryPrimitives.ReadUInt64LittleEndian(data[88..]),
+            EarnedAmountForBetWinner = BinaryPrimitives.ReadUInt64LittleEndian(data[96..]),
+            DistributedAmount = BinaryPrimitives.ReadUInt64LittleEndian(data[104..]),
+            BurnedAmount = BinaryPrimitives.ReadUInt64LittleEndian(data[112..]),
+            GameOperator = data[120..].Slice(0, 32).ToArray()
         };
     }
 }
@@ -158,17 +158,17 @@ public readonly struct GetBetInfoOutput : ISmartContractOutput<GetBetInfoOutput>
         var currentBetState = new uint[8];
         for (int i = 0; i < 8; i++)
         {
-            currentBetState[i] = BinaryPrimitives.ReadUInt32LittleEndian(data[(640 + i * 4)..]);
+            currentBetState[i] = BinaryPrimitives.ReadUInt32LittleEndian(data[(644 + i * 4)..]);
         }
         var betResultWonOption = new sbyte[8];
         for (int i = 0; i < 8; i++)
         {
-            betResultWonOption[i] = (sbyte)data.Slice(672 + i * 1, 1)[0];
+            betResultWonOption[i] = (sbyte)data.Slice(676 + i * 1, 1)[0];
         }
         var betResultOPId = new sbyte[8];
         for (int i = 0; i < 8; i++)
         {
-            betResultOPId[i] = (sbyte)data.Slice(680 + i * 1, 1)[0];
+            betResultOPId[i] = (sbyte)data.Slice(684 + i * 1, 1)[0];
         }
         return new GetBetInfoOutput
         {
@@ -182,8 +182,8 @@ public readonly struct GetBetInfoOutput : ISmartContractOutput<GetBetInfoOutput>
             OpenDate = BinaryPrimitives.ReadUInt32LittleEndian(data[616..]),
             CloseDate = BinaryPrimitives.ReadUInt32LittleEndian(data[620..]),
             EndDate = BinaryPrimitives.ReadUInt32LittleEndian(data[624..]),
-            MinBetAmount = BinaryPrimitives.ReadUInt64LittleEndian(data[628..]),
-            MaxBetSlotPerOption = BinaryPrimitives.ReadUInt32LittleEndian(data[636..]),
+            MinBetAmount = BinaryPrimitives.ReadUInt64LittleEndian(data[632..]),
+            MaxBetSlotPerOption = BinaryPrimitives.ReadUInt32LittleEndian(data[640..]),
             CurrentBetState = currentBetState,
             BetResultWonOption = betResultWonOption,
             BetResultOPId = betResultOPId

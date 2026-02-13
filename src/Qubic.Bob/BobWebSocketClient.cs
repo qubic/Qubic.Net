@@ -29,6 +29,7 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
     private Task? _receiveLoop;
     private Task? _healthCheckLoop;
     private int _requestId;
+    private int _scQueryNonce = (int)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() & 0x7FFFFFFF);
     private int _reconnectAttempts;
     private bool _disposed;
 
@@ -846,12 +847,40 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
         return CallAsync<List<BobLogEntry>>("qubic_getLogs", parameters.ToArray(), cancellationToken);
     }
 
-    /// <summary>Queries a smart contract's state.</summary>
-    public Task<string> QuerySmartContractAsync(
+    /// <summary>Queries a smart contract function (async with polling).</summary>
+    public async Task<string> QuerySmartContractAsync(
         int contractIndex,
-        string inputData,
+        int funcNumber,
+        string hexData,
         CancellationToken cancellationToken = default)
-        => CallAsync<string>("qubic_querySmartContract", new object[] { contractIndex, inputData }, cancellationToken);
+    {
+        var nonce = Interlocked.Increment(ref _scQueryNonce);
+        var parameters = new object[]
+        {
+            new Dictionary<string, object>
+            {
+                ["nonce"] = nonce,
+                ["scIndex"] = contractIndex,
+                ["funcNumber"] = funcNumber,
+                ["data"] = hexData
+            }
+        };
+
+        for (int i = 0; i < 50; i++)
+        {
+            var result = await CallAsync<ScQueryResponse>("qubic_querySmartContract", parameters, cancellationToken);
+
+            if (result.Error is { } error)
+                throw new BobRpcException(-1, error);
+
+            if (result.Data != null)
+                return result.Data;
+
+            await Task.Delay(100, cancellationToken);
+        }
+
+        throw new BobRpcException(-1, "Smart contract query timed out");
+    }
 
     #endregion
 
