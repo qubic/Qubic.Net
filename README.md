@@ -110,6 +110,21 @@ var balance = await bob.GetBalanceAsync(identity);
 var transfers = await bob.GetTransfersAsync(identity, startTick: 1000, endTick: 2000);
 ```
 
+## Tools
+
+| Tool | Description |
+|------|-------------|
+| **[Qubic.ContractGen](tools/Qubic.ContractGen/)** | Parses C++ smart contract headers from `qubic-core` and generates C# bindings with correct struct layouts, type mappings, and MSVC `/Zp8` alignment. |
+| **[Qubic.ScTester](tools/Qubic.ScTester/)** | Blazor Server web UI for browsing and testing all generated smart contract functions against live Qubic nodes via RPC, Bob, or direct TCP. |
+
+```bash
+# Generate C# contract bindings
+dotnet run --project tools/Qubic.ContractGen
+
+# Launch the SC Tester web UI
+dotnet run --project tools/Qubic.ScTester
+```
+
 ## Building
 
 ```bash
