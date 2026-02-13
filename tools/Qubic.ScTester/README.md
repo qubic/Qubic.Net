@@ -2,6 +2,9 @@
 
 A Blazor Server web application for browsing and testing Qubic smart contract functions interactively.
 
+<img width="1283" height="676" alt="image" src="https://github.com/user-attachments/assets/26946924-b9f3-49b3-9dce-18195ab00636" />
+
+
 ## Features
 
 - **Auto-discovery** of all generated contract bindings via reflection
