@@ -21,7 +21,7 @@ Cross-platform desktop application for interacting with the Qubic network. Built
 
 ## Running Pre-Built Releases
 
-Download the latest release for your platform from the [Releases](https://github.com/user/Qubic.Net/releases) page.
+Download the latest release for your platform from the [Releases](https://github.com/qubic/Qubic.Net/releases) page.
 
 > [!IMPORTANT]  
 > **Always verify the SHA-256 hash** of the downloaded file against the checksum published in the release notes to ensure the binary has not been tampered with:
