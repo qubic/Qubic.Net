@@ -8,6 +8,9 @@
     <LangVersion>latest</LangVersion>
     <!-- Ensure Photino native libs are bundled inside single-file publish -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Windows exe icon -->
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+    <AssemblyName>Qubic.Net.Toolkit</AssemblyName>
   </PropertyGroup>
 
   <!-- ASP.NET Core global usings (not included by Razor SDK unlike Web SDK) -->
@@ -40,6 +43,12 @@
     <Content Update="wwwroot\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <None Update="icon.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <EmbeddedResource Include="icon.ico">
+      <LogicalName>icon.ico</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <!-- Embed wwwroot as a zip for single-file publish support -->
