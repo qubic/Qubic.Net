@@ -1,11 +1,55 @@
 @page "/settings"
 @inject ToolkitSettingsService Cfg
+@inject ToolkitBackendService Backend
 
 <h4>Settings</h4>
 <p class="text-muted">Configure Qubic.Net Toolkit behavior.</p>
 
 <div class="row">
     <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">Connection Settings</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Default Backend</label>
+                    <select class="form-select" value="@Backend.ActiveBackend" @onchange="OnBackendChanged">
+                        <option value="@QueryBackend.Rpc">RPC</option>
+                        <option value="@QueryBackend.Bob">Bob (JSON-RPC)</option>
+                        <option value="@QueryBackend.DirectNetwork">Direct Network</option>
+                    </select>
+                    <div class="form-text">
+                        RPC supports most features. Bob provides transfer history and log viewer.
+                        Direct Network connects to a node for IPO status, peer list, and node management.
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">RPC URL</label>
+                    <input type="text" class="form-control" value="@Backend.RpcUrl"
+                           @onchange="OnRpcUrlChanged" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Bob URL</label>
+                    <input type="text" class="form-control" value="@Backend.BobUrl"
+                           @onchange="OnBobUrlChanged" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Node Host</label>
+                    <input type="text" class="form-control" value="@Backend.NodeHost"
+                           @onchange="OnNodeHostChanged" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Node Port</label>
+                    <input type="number" class="form-control" min="1" max="65535"
+                           value="@Backend.NodePort"
+                           @onchange="OnNodePortChanged" />
+                </div>
+            </div>
+        </div>
+
         <div class="card mb-3">
             <div class="card-header">Transaction Settings</div>
             <div class="card-body">
@@ -52,3 +96,38 @@
         </div>
     </div>
 </div>
+
+@code {
+    private void OnBackendChanged(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<QueryBackend>(e.Value?.ToString(), out var b))
+        {
+            Backend.ActiveBackend = b;
+            Backend.ApplySettings();
+        }
+    }
+
+    private void OnRpcUrlChanged(ChangeEventArgs e)
+    {
+        Backend.RpcUrl = e.Value?.ToString() ?? "";
+        Backend.ApplySettings();
+    }
+
+    private void OnBobUrlChanged(ChangeEventArgs e)
+    {
+        Backend.BobUrl = e.Value?.ToString() ?? "";
+        Backend.ApplySettings();
+    }
+
+    private void OnNodeHostChanged(ChangeEventArgs e)
+    {
+        Backend.NodeHost = e.Value?.ToString() ?? "";
+        Backend.ApplySettings();
+    }
+
+    private void OnNodePortChanged(ChangeEventArgs e)
+    {
+        Backend.NodePort = int.TryParse(e.Value?.ToString(), out var v) ? v : 21841;
+        Backend.ApplySettings();
+    }
+}

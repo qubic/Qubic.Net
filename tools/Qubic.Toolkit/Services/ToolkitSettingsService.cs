@@ -13,6 +13,13 @@ public sealed class ToolkitSettingsService
     private int _autoResendMaxRetries = 3;
     private List<string> _favorites = [];
 
+    // Connection settings
+    private string _defaultBackend = "Rpc";
+    private string _rpcUrl = "https://rpc.qubic.org";
+    private string _bobUrl = "https://bob.qubic.li";
+    private string _nodeHost = "corenet.qubic.li";
+    private int _nodePort = 21841;
+
     public ToolkitSettingsService()
     {
         LoadFromDisk();
@@ -80,6 +87,74 @@ public sealed class ToolkitSettingsService
         OnChanged?.Invoke();
     }
 
+    // ── Connection settings ──
+
+    /// <summary>Default backend: "Rpc", "Bob", or "DirectNetwork".</summary>
+    public string DefaultBackend
+    {
+        get => _defaultBackend;
+        set
+        {
+            if (_defaultBackend == value) return;
+            _defaultBackend = value;
+            SaveToDisk();
+            OnChanged?.Invoke();
+        }
+    }
+
+    public string RpcUrl
+    {
+        get => _rpcUrl;
+        set
+        {
+            value = value?.Trim() ?? "";
+            if (_rpcUrl == value) return;
+            _rpcUrl = value;
+            SaveToDisk();
+            OnChanged?.Invoke();
+        }
+    }
+
+    public string BobUrl
+    {
+        get => _bobUrl;
+        set
+        {
+            value = value?.Trim() ?? "";
+            if (_bobUrl == value) return;
+            _bobUrl = value;
+            SaveToDisk();
+            OnChanged?.Invoke();
+        }
+    }
+
+    public string NodeHost
+    {
+        get => _nodeHost;
+        set
+        {
+            value = value?.Trim() ?? "";
+            if (_nodeHost == value) return;
+            _nodeHost = value;
+            SaveToDisk();
+            OnChanged?.Invoke();
+        }
+    }
+
+    public int NodePort
+    {
+        get => _nodePort;
+        set
+        {
+            if (value < 1) value = 1;
+            if (value > 65535) value = 65535;
+            if (_nodePort == value) return;
+            _nodePort = value;
+            SaveToDisk();
+            OnChanged?.Invoke();
+        }
+    }
+
     public event Action? OnChanged;
 
     private void SaveToDisk()
@@ -92,7 +167,12 @@ public sealed class ToolkitSettingsService
                 TickOffset = _tickOffset,
                 AutoResend = _autoResend,
                 AutoResendMaxRetries = _autoResendMaxRetries,
-                Favorites = _favorites
+                Favorites = _favorites,
+                DefaultBackend = _defaultBackend,
+                RpcUrl = _rpcUrl,
+                BobUrl = _bobUrl,
+                NodeHost = _nodeHost,
+                NodePort = _nodePort
             };
             File.WriteAllText(SettingsFile, JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true }));
         }
@@ -111,6 +191,11 @@ public sealed class ToolkitSettingsService
             _autoResend = data.AutoResend;
             _autoResendMaxRetries = Math.Clamp(data.AutoResendMaxRetries, 1, 20);
             _favorites = data.Favorites ?? [];
+            _defaultBackend = data.DefaultBackend is "Rpc" or "Bob" or "DirectNetwork" ? data.DefaultBackend : "Rpc";
+            if (!string.IsNullOrEmpty(data.RpcUrl)) _rpcUrl = data.RpcUrl;
+            if (!string.IsNullOrEmpty(data.BobUrl)) _bobUrl = data.BobUrl;
+            if (!string.IsNullOrEmpty(data.NodeHost)) _nodeHost = data.NodeHost;
+            if (data.NodePort > 0 && data.NodePort <= 65535) _nodePort = data.NodePort;
         }
         catch { /* corrupted file, use defaults */ }
     }
@@ -121,5 +206,10 @@ public sealed class ToolkitSettingsService
         public bool AutoResend { get; set; }
         public int AutoResendMaxRetries { get; set; } = 3;
         public List<string> Favorites { get; set; } = [];
+        public string DefaultBackend { get; set; } = "Rpc";
+        public string RpcUrl { get; set; } = "https://rpc.qubic.org";
+        public string BobUrl { get; set; } = "https://bob.qubic.li";
+        public string NodeHost { get; set; } = "corenet.qubic.li";
+        public int NodePort { get; set; } = 21841;
     }
 }

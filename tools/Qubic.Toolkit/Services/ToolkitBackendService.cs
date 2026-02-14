@@ -11,11 +11,37 @@ public enum QueryBackend { Rpc, Bob, DirectNetwork }
 
 public class ToolkitBackendService : IDisposable
 {
-    public QueryBackend ActiveBackend { get; set; } = QueryBackend.Rpc;
-    public string RpcUrl { get; set; } = "https://rpc.qubic.org";
-    public string BobUrl { get; set; } = "https://bob.qubic.li";
-    public string NodeHost { get; set; } = "corenet.qubic.li";
-    public int NodePort { get; set; } = 21841;
+    private readonly ToolkitSettingsService _settings;
+
+    public QueryBackend ActiveBackend { get; set; }
+    public string RpcUrl { get; set; }
+    public string BobUrl { get; set; }
+    public string NodeHost { get; set; }
+    public int NodePort { get; set; }
+
+    public ToolkitBackendService(ToolkitSettingsService settings)
+    {
+        _settings = settings;
+        ActiveBackend = Enum.TryParse<QueryBackend>(settings.DefaultBackend, out var b) ? b : QueryBackend.Rpc;
+        RpcUrl = settings.RpcUrl;
+        BobUrl = settings.BobUrl;
+        NodeHost = settings.NodeHost;
+        NodePort = settings.NodePort;
+    }
+
+    /// <summary>
+    /// Apply current settings to the backend and reset clients.
+    /// Call this after changing settings properties.
+    /// </summary>
+    public void ApplySettings()
+    {
+        _settings.DefaultBackend = ActiveBackend.ToString();
+        _settings.RpcUrl = RpcUrl;
+        _settings.BobUrl = BobUrl;
+        _settings.NodeHost = NodeHost;
+        _settings.NodePort = NodePort;
+        ResetClients();
+    }
 
     private QubicRpcClient? _rpcClient;
     private BobClient? _bobClient;
