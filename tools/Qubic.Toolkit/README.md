@@ -23,15 +23,27 @@ Cross-platform desktop application for interacting with the Qubic network. Built
 
 Download the latest release for your platform from the [Releases](https://github.com/qubic/Qubic.Net/releases) page.
 
-> [!IMPORTANT]  
-> **Always verify the SHA-256 hash** of the downloaded file against the checksum published in the release notes to ensure the binary has not been tampered with:
+> [!IMPORTANT]
+> **Always verify the SHA-256 hashes** to ensure files have not been tampered with.
+
+**Verify the zip download** against the `.zip.sha256` file published alongside each release:
 
 ```bash
 # Windows (PowerShell)
 Get-FileHash Qubic.Net.Toolkit-win-x64.zip -Algorithm SHA256
 
 # macOS / Linux
-sha256sum Qubic.Net.Toolkit-*.zip
+sha256sum -c Qubic.Net.Toolkit-linux-x64.zip.sha256
+```
+
+**Verify the binary** after extracting — each zip contains a `.sha256` file for the binary:
+
+```bash
+# Windows (PowerShell)
+Get-FileHash Qubic.Net.Toolkit.exe -Algorithm SHA256
+
+# macOS / Linux
+sha256sum -c Qubic.Net.Toolkit.sha256
 ```
 
 ### Windows
@@ -47,7 +59,11 @@ Qubic.Net.Toolkit.exe --server
 
 ### macOS
 
-1. Download `Qubic.Net.Toolkit-osx-x64.zip`
+Requires **macOS 12 (Monterey)** or later.
+
+1. Download the zip for your architecture:
+   - **Apple Silicon** (M1/M2/M3/M4): `Qubic.Net.Toolkit-osx-arm64.zip`
+   - **Intel**: `Qubic.Net.Toolkit-osx-x64.zip`
 2. Extract and run:
 
 ```bash
@@ -59,7 +75,18 @@ xattr -d com.apple.quarantine Qubic.Net.Toolkit
 
 ### Linux
 
-Requires WebKitGTK for desktop mode:
+Desktop mode requires **GLIBC 2.38+** and **WebKitGTK**. Supported distributions:
+
+| Distribution | Version | Desktop Mode | Server Mode |
+|---|---|---|---|
+| Ubuntu | 24.04+ (Noble) | Yes | Yes |
+| Debian | 13+ (Trixie) | Yes | Yes |
+| Fedora | 39+ | Yes | Yes |
+| Arch Linux | Rolling | Yes | Yes |
+| Ubuntu | 22.04 (Jammy) | No | Yes |
+| Debian | 12 (Bookworm) | No | Yes |
+
+Install WebKitGTK for desktop mode:
 
 ```bash
 # Ubuntu/Debian
@@ -74,7 +101,9 @@ chmod +x Qubic.Net.Toolkit
 ./Qubic.Net.Toolkit
 ```
 
-To run in server mode (no WebKitGTK required):
+If desktop mode is not supported on your system, the app automatically falls back to server mode.
+
+To run in server mode directly (no GLIBC 2.38 or WebKitGTK required):
 
 ```bash
 ./Qubic.Net.Toolkit --server
@@ -103,13 +132,19 @@ dotnet run --project tools/Qubic.Toolkit -- --server
 ### Windows Single-File
 
 ```bash
-dotnet publish tools/Qubic.Toolkit -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+dotnet publish tools/Qubic.Toolkit -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
 ```
 
-### macOS
+### macOS (Intel)
 
 ```bash
-dotnet publish tools/Qubic.Toolkit -c Release -r osx-x64 --self-contained -p:PublishSingleFile=true
+dotnet publish tools/Qubic.Toolkit -c Release -r osx-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+```
+
+### macOS (Apple Silicon)
+
+```bash
+dotnet publish tools/Qubic.Toolkit -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
 ```
 
 ### Linux
@@ -120,7 +155,7 @@ Requires WebKitGTK (`libwebkit2gtk-4.1`):
 # Ubuntu/Debian
 sudo apt install libwebkit2gtk-4.1-0
 
-dotnet publish tools/Qubic.Toolkit -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true
+dotnet publish tools/Qubic.Toolkit -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
 ```
 
 ## Architecture

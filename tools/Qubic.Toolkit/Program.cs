@@ -26,7 +26,19 @@ class Program
         }
         else
         {
-            RunDesktop(args);
+            try
+            {
+                RunDesktop(args);
+            }
+            catch (Exception ex) when (ex is DllNotFoundException || ex.InnerException is DllNotFoundException)
+            {
+                Console.Error.WriteLine("Desktop mode failed: native library not available.");
+                Console.Error.WriteLine(ex.InnerException?.Message ?? ex.Message);
+                Console.Error.WriteLine();
+                Console.Error.WriteLine("Falling back to server mode (--server)...");
+                Console.Error.WriteLine();
+                RunServer(args);
+            }
         }
     }
 

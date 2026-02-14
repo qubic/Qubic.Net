@@ -16,6 +16,9 @@ packages/
 *.swp
 *~
 
+## Publish output
+tools/Qubic.Toolkit/publish/
+
 ## OS
 .DS_Store
 Thumbs.db
