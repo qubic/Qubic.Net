@@ -32,11 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Qubic.Core\Qubic.Core.csproj" />
-    <ProjectReference Include="..\..\src\Qubic.Rpc\Qubic.Rpc.csproj" />
-    <ProjectReference Include="..\..\src\Qubic.Bob\Qubic.Bob.csproj" />
-    <ProjectReference Include="..\..\src\Qubic.Crypto\Qubic.Crypto.csproj" />
-    <ProjectReference Include="..\..\src\Qubic.Network\Qubic.Network.csproj" />
+    <ProjectReference Include="..\..\src\Qubic.Services\Qubic.Services.csproj" />
   </ItemGroup>
 
   <ItemGroup>

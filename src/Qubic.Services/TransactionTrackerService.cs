@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Qubic.Core.Entities;
 
-namespace Qubic.Toolkit;
+namespace Qubic.Services;
 
 public enum TrackedTxStatus
 {
@@ -35,14 +35,14 @@ public sealed class TrackedTransaction
 
 public sealed class TransactionTrackerService : IDisposable
 {
-    private readonly ToolkitBackendService _backend;
+    private readonly QubicBackendService _backend;
     private readonly TickMonitorService _tickMonitor;
-    private readonly ToolkitSettingsService _settings;
+    private readonly QubicSettingsService _settings;
     private readonly SeedSessionService _seed;
     private readonly List<TrackedTransaction> _transactions = [];
     private readonly object _lock = new();
     private string? _storageKey;
-    private string? _storageDir;
+    private readonly string _storageDir;
     private CancellationTokenSource? _cts;
     private Task? _monitorTask;
 
@@ -64,14 +64,14 @@ public sealed class TransactionTrackerService : IDisposable
         }
     }
 
-    public TransactionTrackerService(ToolkitBackendService backend, TickMonitorService tickMonitor,
-        ToolkitSettingsService settings, SeedSessionService seed)
+    public TransactionTrackerService(QubicBackendService backend, TickMonitorService tickMonitor,
+        QubicSettingsService settings, SeedSessionService seed)
     {
         _backend = backend;
         _tickMonitor = tickMonitor;
         _settings = settings;
         _seed = seed;
-        _storageDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "QubicToolkit");
+        _storageDir = settings.StorageDirectory;
 
         _cts = new CancellationTokenSource();
         _monitorTask = Task.Run(() => MonitorLoop(_cts.Token));
@@ -258,9 +258,6 @@ public sealed class TransactionTrackerService : IDisposable
                         }
                         else if (info.MoneyFlew == false)
                         {
-                            // For contract procedure calls (InputType > 0) with amount 0,
-                            // moneyFlew=false is expected — no QU transferred. The transaction
-                            // being found on-chain means it was executed successfully.
                             var isZeroAmountContractCall = tx.Amount == 0 && tx.InputType > 0;
                             tx.Status = isZeroAmountContractCall ? TrackedTxStatus.Confirmed : TrackedTxStatus.Failed;
                             tx.ResolvedUtc = DateTime.UtcNow;
@@ -391,7 +388,7 @@ public sealed class TransactionTrackerService : IDisposable
 
     private void SaveToDisk()
     {
-        if (_storageKey == null || _storageDir == null) return;
+        if (_storageKey == null) return;
         try
         {
             Directory.CreateDirectory(_storageDir);
@@ -428,7 +425,7 @@ public sealed class TransactionTrackerService : IDisposable
     }
 
     private string GetFilePath()
-        => Path.Combine(_storageDir!, _storageKey![..16] + ".txdb");
+        => Path.Combine(_storageDir, _storageKey![..16] + ".txdb");
 
     private static string Encrypt(string plaintext, string key)
     {

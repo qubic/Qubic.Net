@@ -1,0 +1,155 @@
+/* ── Base Layout ── */
+html, body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.mono {
+    font-family: "Cascadia Mono", "SF Mono", "Fira Code", "Consolas", monospace;
+}
+
+.small {
+    font-size: 0.85em;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.sidebar .nav-link {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: 0.375rem;
+    color: var(--bs-body-color);
+}
+
+.sidebar .nav-link:hover {
+    background-color: var(--bs-tertiary-bg);
+}
+
+.sidebar .nav-link.active {
+    background-color: var(--bs-primary);
+    color: #fff;
+}
+
+.nav-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.75rem;
+    padding: 0 0.5rem;
+}
+
+.nav-section-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: var(--bs-secondary-color);
+    text-decoration: none;
+}
+
+.nav-section-label:hover {
+    color: var(--bs-body-color);
+}
+
+.nav-section-toggle {
+    cursor: pointer;
+    padding: 0 0.25rem;
+}
+
+.nav-sub-links {
+    padding-left: 0.5rem;
+}
+
+.chevron {
+    transition: transform 0.2s;
+    font-size: 0.7rem;
+}
+
+.chevron.expanded {
+    transform: rotate(90deg);
+}
+
+/* ── Seed Warning ── */
+.seed-warning {
+    background-color: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+    border-bottom: 1px solid var(--bs-warning-border-subtle);
+}
+
+/* ── Cards ── */
+.card {
+    border-color: var(--bs-border-color);
+}
+
+/* ── Address Display ── */
+.address-label {
+    font-weight: 600;
+}
+
+.address-copy-btn {
+    font-size: 0.75rem;
+    line-height: 1;
+    vertical-align: baseline;
+}
+
+/* ── Tab Pills ── */
+.nav-pills .nav-link {
+    font-size: 0.875rem;
+}
+
+/* ── Theme Toggle ── */
+.theme-toggle {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.3);
+    color: rgba(255,255,255,0.8);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.theme-toggle:hover {
+    border-color: rgba(255,255,255,0.6);
+    color: #fff;
+}
+
+/* ── Quick Actions ── */
+.quick-action-btn {
+    min-width: 120px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 180px !important;
+        min-width: 180px !important;
+        max-width: 180px !important;
+    }
+}
+
+/* ── Spinner Animation ── */
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* ── Dark Mode Adjustments ── */
+[data-bs-theme="dark"] .sidebar {
+    border-color: var(--bs-border-color) !important;
+}
+
+[data-bs-theme="dark"] .navbar {
+    border-bottom: 1px solid var(--bs-border-color);
+}

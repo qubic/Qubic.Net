@@ -1,0 +1,142 @@
+@page "/"
+@implements IDisposable
+@inject SeedSessionService Seed
+@inject QubicBackendService Backend
+@inject TickMonitorService TickMonitor
+
+<h4>Welcome to Qubic.Net Wallet</h4>
+
+@if (!Seed.HasSeed)
+{
+    <div class="card mt-3" style="max-width:600px">
+        <div class="card-body text-center py-5">
+            <i class="bi bi-wallet2 display-1 text-primary mb-3 d-block"></i>
+            <h5>Get Started</h5>
+            <p class="text-muted">Enter your 55-character seed in the top bar to unlock your wallet.</p>
+            <p class="small text-muted">Your seed is stored only in memory and cleared when you close the app.</p>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header">Identity</div>
+                <div class="card-body">
+                    <code class="mono d-block" style="word-break:break-all">@Seed.Identity</code>
+                </div>
+            </div>
+            <div class="card mb-3">
+                <div class="card-header">Balance</div>
+                <div class="card-body">
+                    @if (_balanceLoading)
+                    {
+                        <span class="text-muted">Loading...</span>
+                    }
+                    else if (_balance != null)
+                    {
+                        <h3 class="mb-0">@_balance.Value.ToString("N0") <small class="text-muted">QU</small></h3>
+                    }
+                    else if (_balanceError != null)
+                    {
+                        <span class="text-danger">@_balanceError</span>
+                    }
+                    else
+                    {
+                        <button class="btn btn-sm btn-outline-primary" @onclick="LoadBalance">Load Balance</button>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header">Network</div>
+                <div class="card-body">
+                    @if (TickMonitor.IsConnected)
+                    {
+                        <p class="mb-1">Epoch: <strong>@TickMonitor.Epoch</strong></p>
+                        <p class="mb-0">Tick: <strong>@TickMonitor.Tick.ToString("N0")</strong></p>
+                    }
+                    else
+                    {
+                        <span class="text-muted">Not connected</span>
+                    }
+                </div>
+            </div>
+            <div class="card mb-3">
+                <div class="card-header">Quick Actions</div>
+                <div class="card-body d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary quick-action-btn" href="/send"><i class="bi bi-send me-1"></i>Send</a>
+                    <a class="btn btn-outline-primary quick-action-btn" href="/receive"><i class="bi bi-qr-code me-1"></i>Receive</a>
+                    <a class="btn btn-outline-primary quick-action-btn" href="/assets"><i class="bi bi-grid-3x3-gap me-1"></i>Assets</a>
+                    <a class="btn btn-outline-primary quick-action-btn" href="/history"><i class="bi bi-list-ul me-1"></i>History</a>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private long? _balance;
+    private bool _balanceLoading;
+    private string? _balanceError;
+    private bool _disposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        TickMonitor.OnTickChanged += OnTickChanged;
+        Seed.OnSeedChanged += OnSeedChanged;
+
+        if (Seed.HasSeed)
+            await LoadBalance();
+    }
+
+    private void OnTickChanged()
+    {
+        if (_disposed) return;
+        InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
+    }
+
+    private void OnSeedChanged()
+    {
+        if (_disposed) return;
+        InvokeAsync(async () =>
+        {
+            if (_disposed) return;
+            _balance = null;
+            _balanceError = null;
+            if (Seed.HasSeed)
+                await LoadBalance();
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadBalance()
+    {
+        if (!Seed.HasSeed || Seed.Identity == null) return;
+        _balanceLoading = true;
+        _balanceError = null;
+        StateHasChanged();
+        try
+        {
+            var bal = await Backend.GetBalanceAsync(Seed.Identity.Value);
+            _balance = bal.Amount;
+        }
+        catch (Exception ex)
+        {
+            _balanceError = ex.Message;
+        }
+        finally
+        {
+            _balanceLoading = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        TickMonitor.OnTickChanged -= OnTickChanged;
+        Seed.OnSeedChanged -= OnSeedChanged;
+    }
+}

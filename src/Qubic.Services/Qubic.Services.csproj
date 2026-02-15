@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Qubic.Core\Qubic.Core.csproj" />
+    <ProjectReference Include="..\Qubic.Crypto\Qubic.Crypto.csproj" />
+    <ProjectReference Include="..\Qubic.Rpc\Qubic.Rpc.csproj" />
+    <ProjectReference Include="..\Qubic.Bob\Qubic.Bob.csproj" />
+    <ProjectReference Include="..\Qubic.Network\Qubic.Network.csproj" />
+  </ItemGroup>
+
+</Project>

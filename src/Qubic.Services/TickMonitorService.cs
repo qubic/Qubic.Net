@@ -1,7 +1,7 @@
 using Qubic.Bob;
 using Qubic.Bob.Models;
 
-namespace Qubic.Toolkit;
+namespace Qubic.Services;
 
 /// <summary>
 /// Monitors the current tick/epoch, using Bob WebSocket for real-time updates
@@ -9,7 +9,7 @@ namespace Qubic.Toolkit;
 /// </summary>
 public sealed class TickMonitorService : IDisposable
 {
-    private readonly ToolkitBackendService _backend;
+    private readonly QubicBackendService _backend;
     private readonly SemaphoreSlim _lock = new(1, 1);
     private CancellationTokenSource? _cts;
     private BobWebSocketClient? _wsClient;
@@ -34,7 +34,7 @@ public sealed class TickMonitorService : IDisposable
         }
     }
 
-    public TickMonitorService(ToolkitBackendService backend)
+    public TickMonitorService(QubicBackendService backend)
     {
         _backend = backend;
     }

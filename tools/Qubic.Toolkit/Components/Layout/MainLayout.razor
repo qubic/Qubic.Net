@@ -1,11 +1,12 @@
 @inherits LayoutComponentBase
 @implements IDisposable
-@inject ToolkitBackendService Backend
-@inject ToolkitSettingsService Settings
+@inject QubicBackendService Backend
+@inject QubicSettingsService Settings
 @inject SeedSessionService Seed
 @inject TickMonitorService TickMonitor
 @inject TransactionTrackerService TxTracker
 @inject PeerAutoDiscoverService PeerAutoDiscover
+@inject LabelService Labels
 
 <div class="d-flex flex-column vh-100">
     <nav class="navbar navbar-dark bg-dark px-3">
@@ -104,6 +105,43 @@
     </div>
 </div>
 
+@if (Settings.ExtendedServicesConfigured == null)
+{
+    <div class="modal d-block" tabindex="-1" style="background-color:rgba(0,0,0,0.6)">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title">
+                        <i class="bi bi-gear me-2"></i>Welcome to Qubic.Net Toolkit
+                    </h6>
+                </div>
+                <div class="modal-body">
+                    <p>Would you like to enable <strong>extended services</strong>?</p>
+                    <p class="text-muted small mb-2">
+                        Extended services fetch additional data from external servers to enhance the app experience.
+                        This currently includes:
+                    </p>
+                    <ul class="small text-muted">
+                        <li><strong>Address labels</strong> — display known names for exchanges, contracts, and tokens
+                            (loaded from <code>static.qubic.org</code>)</li>
+                    </ul>
+                    <p class="text-muted small mb-0">
+                        You can change this at any time in <strong>Settings</strong>.
+                    </p>
+                </div>
+                <div class="modal-footer py-2">
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="() => ConfigureExtendedServices(false)">
+                        No thanks
+                    </button>
+                    <button class="btn btn-primary btn-sm" @onclick="() => ConfigureExtendedServices(true)">
+                        Enable extended services
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private string? _seedInput;
     private bool _reconnecting;
@@ -135,6 +173,18 @@
         PeerAutoDiscover.OnDiscoveryCompleted += OnBackgroundDiscovery;
         PeerAutoDiscover.OnDiscoveryError += OnBackgroundDiscoveryError;
         await TickMonitor.StartAsync();
+
+        if (Settings.ExtendedServicesConfigured == true && Settings.RemoteLabelsEnabled)
+            _ = Labels.LoadRemoteLabelsAsync();
+    }
+
+    private void ConfigureExtendedServices(bool enable)
+    {
+        Settings.RemoteLabelsEnabled = enable;
+        Settings.ExtendedServicesConfigured = enable;
+
+        if (enable)
+            _ = Labels.LoadRemoteLabelsAsync();
     }
 
     private bool _disposed;
@@ -197,7 +247,8 @@
 
         try
         {
-            var result = await Backend.AutoDiscoverRecentPeerAsync(Settings.PeerTickThreshold);
+            var threshold = Settings.GetCustom<int>("PeerTickThreshold") is > 0 and var t ? t : 10;
+            var result = await Backend.AutoDiscoverRecentPeerAsync(threshold);
 
             if (result.Switched)
             {
@@ -223,7 +274,7 @@
         }
     }
 
-    private void OnBackgroundDiscovery(ToolkitBackendService.PeerDiscoveryResult result)
+    private void OnBackgroundDiscovery(QubicBackendService.PeerDiscoveryResult result)
     {
         if (_disposed) return;
         InvokeAsync(() =>

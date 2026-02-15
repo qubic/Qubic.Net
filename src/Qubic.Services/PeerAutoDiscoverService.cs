@@ -1,4 +1,4 @@
-namespace Qubic.Toolkit;
+namespace Qubic.Services;
 
 /// <summary>
 /// Background service that periodically auto-discovers the most recent peer
@@ -6,15 +6,15 @@ namespace Qubic.Toolkit;
 /// </summary>
 public sealed class PeerAutoDiscoverService : IDisposable
 {
-    private readonly ToolkitBackendService _backend;
-    private readonly ToolkitSettingsService _settings;
+    private readonly QubicBackendService _backend;
+    private readonly QubicSettingsService _settings;
     private readonly TickMonitorService _tickMonitor;
     private Timer? _timer;
     private bool _running;
 
     public PeerAutoDiscoverService(
-        ToolkitBackendService backend,
-        ToolkitSettingsService settings,
+        QubicBackendService backend,
+        QubicSettingsService settings,
         TickMonitorService tickMonitor)
     {
         _backend = backend;
@@ -27,7 +27,7 @@ public sealed class PeerAutoDiscoverService : IDisposable
     /// <summary>
     /// Raised after a background discovery completes (on a thread-pool thread).
     /// </summary>
-    public event Action<ToolkitBackendService.PeerDiscoveryResult>? OnDiscoveryCompleted;
+    public event Action<QubicBackendService.PeerDiscoveryResult>? OnDiscoveryCompleted;
 
     /// <summary>
     /// Raised when a background discovery encounters an error.
@@ -51,7 +51,7 @@ public sealed class PeerAutoDiscoverService : IDisposable
 
     private void ApplyInterval()
     {
-        var minutes = _settings.AutoDiscoverIntervalMinutes;
+        var minutes = _settings.GetCustom<int>("AutoDiscoverIntervalMinutes");
         if (minutes <= 0 || _backend.ActiveBackend != QueryBackend.DirectNetwork)
         {
             _timer?.Change(Timeout.Infinite, Timeout.Infinite);
@@ -83,8 +83,10 @@ public sealed class PeerAutoDiscoverService : IDisposable
         _running = true;
         try
         {
-            var result = await _backend.AutoDiscoverRecentPeerAsync(
-                _settings.PeerTickThreshold);
+            var threshold = _settings.GetCustom<int>("PeerTickThreshold");
+            if (threshold <= 0) threshold = 10;
+
+            var result = await _backend.AutoDiscoverRecentPeerAsync(threshold);
 
             LastRun = DateTime.Now;
 

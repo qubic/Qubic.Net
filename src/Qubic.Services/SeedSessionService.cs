@@ -3,7 +3,7 @@ using Qubic.Core.Entities;
 using Qubic.Core.Payloads;
 using Qubic.Crypto;
 
-namespace Qubic.Toolkit;
+namespace Qubic.Services;
 
 public class SeedSessionService
 {

@@ -6,13 +6,13 @@ using Qubic.Network;
 using Qubic.Rpc;
 using Qubic.Rpc.Models;
 
-namespace Qubic.Toolkit;
+namespace Qubic.Services;
 
 public enum QueryBackend { Rpc, Bob, DirectNetwork }
 
-public class ToolkitBackendService : IDisposable
+public class QubicBackendService : IDisposable
 {
-    private readonly ToolkitSettingsService _settings;
+    private readonly QubicSettingsService _settings;
 
     public QueryBackend ActiveBackend { get; set; }
     public string RpcUrl { get; set; }
@@ -20,7 +20,7 @@ public class ToolkitBackendService : IDisposable
     public string NodeHost { get; set; }
     public int NodePort { get; set; }
 
-    public ToolkitBackendService(ToolkitSettingsService settings)
+    public QubicBackendService(QubicSettingsService settings)
     {
         _settings = settings;
         ActiveBackend = Enum.TryParse<QueryBackend>(settings.DefaultBackend, out var b) ? b : QueryBackend.Rpc;
@@ -295,10 +295,6 @@ public class ToolkitBackendService : IDisposable
         if (ActiveBackend != QueryBackend.DirectNetwork)
             throw new InvalidOperationException("Peer list is only available with DirectNetwork backend.");
 
-        // Use a fresh connection: the Qubic node sends ExchangePublicPeers only
-        // once when a new connection is established. On a reused connection that
-        // initial packet was already consumed by an earlier operation, so the node
-        // would never respond to a second ExchangePublicPeers request.
         using var node = new QubicNodeClient(NodeHost, NodePort);
         await node.ConnectAsync(ct);
         return await node.GetPeerListAsync(ct);
@@ -445,10 +441,6 @@ public class ToolkitBackendService : IDisposable
 
     // ── Transaction Verification (DirectNetwork) ──
 
-    /// <summary>
-    /// Checks if a transaction with the given hash exists in a tick via DirectNetwork.
-    /// Returns true if the transaction was found in the tick's transactions.
-    /// </summary>
     public async Task<bool> CheckTransactionInTickAsync(string txHash, uint tick, CancellationToken ct = default)
     {
         if (ActiveBackend != QueryBackend.DirectNetwork)
@@ -460,7 +452,6 @@ public class ToolkitBackendService : IDisposable
         var crypt = new QubicCrypt();
         foreach (var rawTx in rawTransactions)
         {
-            // K12 hash of the full signed transaction bytes → identity-format string
             var digest = crypt.KangarooTwelve(rawTx);
             var hash = crypt.GetHumanReadableBytes(digest);
             if (string.Equals(hash, txHash, StringComparison.OrdinalIgnoreCase))

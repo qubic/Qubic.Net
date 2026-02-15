@@ -1,5 +1,5 @@
-@inject ToolkitBackendService Backend
-@inject ToolkitSettingsService Settings
+@inject QubicBackendService Backend
+@inject QubicSettingsService Settings
 @inject NavigationManager Nav
 @implements IDisposable
 
@@ -9,13 +9,14 @@
             <i class="bi bi-speedometer2 me-2"></i>Dashboard
         </NavLink>
 
-        @if (Settings.Favorites.Count > 0)
+        @{ var favorites = GetFavorites(); }
+        @if (favorites.Count > 0)
         {
             <div class="nav-section-header mt-2">
                 <span class="nav-section-label"><i class="bi bi-star-fill me-1 text-warning"></i>FAVORITES</span>
             </div>
             <div class="nav-sub-links">
-                @foreach (var path in Settings.Favorites)
+                @foreach (var path in favorites)
                 {
                     if (PageRegistry.TryGetValue(path, out var info))
                     {
@@ -265,9 +266,16 @@
             _expanded.Add(section);
     }
 
+    private List<string> GetFavorites() => Settings.GetCustom<List<string>>("Favorites") ?? [];
+
+    private bool IsFavorite(string path) => GetFavorites().Contains(path);
+
     private void ToggleFav(string path)
     {
-        Settings.ToggleFavorite(path);
+        var favs = GetFavorites();
+        if (!favs.Remove(path))
+            favs.Add(path);
+        Settings.SetCustom("Favorites", favs);
     }
 
     private RenderFragment NavItem(string href, string icon, string label) => __builder =>
@@ -276,10 +284,10 @@
             <NavLink class="nav-link flex-grow-1" href="@href">
                 <i class="bi @icon me-2"></i>@label
             </NavLink>
-            <button class="btn btn-sm fav-btn @(Settings.IsFavorite(href) ? "active" : "")"
+            <button class="btn btn-sm fav-btn @(IsFavorite(href) ? "active" : "")"
                     @onclick="() => ToggleFav(href)" @onclick:preventDefault @onclick:stopPropagation
-                    title="@(Settings.IsFavorite(href) ? "Remove from favorites" : "Add to favorites")">
-                <i class="bi @(Settings.IsFavorite(href) ? "bi-star-fill" : "bi-star")"></i>
+                    title="@(IsFavorite(href) ? "Remove from favorites" : "Add to favorites")">
+                <i class="bi @(IsFavorite(href) ? "bi-star-fill" : "bi-star")"></i>
             </button>
         </div>
     };

@@ -1,17 +1,17 @@
 using System.Text.Json;
 
-namespace Qubic.Toolkit;
+namespace Qubic.Services;
 
 public sealed class AssetRegistryService
 {
-    private static readonly string SettingsDir = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "QubicToolkit");
-    private static readonly string AssetsFile = Path.Combine(SettingsDir, "assets.json");
-
+    private readonly string _storageDir;
+    private readonly string _assetsFile;
     private List<AssetEntry> _assets = [];
 
-    public AssetRegistryService()
+    public AssetRegistryService(QubicSettingsService settings)
     {
+        _storageDir = settings.StorageDirectory;
+        _assetsFile = Path.Combine(_storageDir, "assets.json");
         LoadFromDisk();
         if (_assets.Count == 0)
             SeedDefaults();
@@ -74,8 +74,8 @@ public sealed class AssetRegistryService
     {
         try
         {
-            Directory.CreateDirectory(SettingsDir);
-            File.WriteAllText(AssetsFile, JsonSerializer.Serialize(_assets, new JsonSerializerOptions { WriteIndented = true }));
+            Directory.CreateDirectory(_storageDir);
+            File.WriteAllText(_assetsFile, JsonSerializer.Serialize(_assets, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch { /* best effort */ }
     }
@@ -84,8 +84,8 @@ public sealed class AssetRegistryService
     {
         try
         {
-            if (!File.Exists(AssetsFile)) return;
-            var json = File.ReadAllText(AssetsFile);
+            if (!File.Exists(_assetsFile)) return;
+            var json = File.ReadAllText(_assetsFile);
             _assets = JsonSerializer.Deserialize<List<AssetEntry>>(json) ?? [];
         }
         catch { _assets = []; }

@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.FileProviders;
 using Photino.Blazor;
+using Qubic.Services;
 using Qubic.Toolkit;
 using Qubic.Toolkit.Components;
 
@@ -44,9 +45,9 @@ class Program
 
     static void RegisterServices(IServiceCollection services)
     {
-        services.AddSingleton<ToolkitSettingsService>();
+        services.AddSingleton(new QubicSettingsService("QubicToolkit"));
         services.AddSingleton<ContractDiscovery>();
-        services.AddSingleton<ToolkitBackendService>();
+        services.AddSingleton<QubicBackendService>();
         services.AddSingleton<SeedSessionService>();
         services.AddSingleton<TickMonitorService>();
         services.AddSingleton<TransactionTrackerService>();
