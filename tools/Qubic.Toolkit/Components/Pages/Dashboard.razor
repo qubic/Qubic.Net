@@ -86,7 +86,94 @@
     </div>
 </div>
 
+
+<div class="row g-3 mt-1">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                Backend Compatibility
+                <span class="badge bg-secondary">Active: @Backend.ActiveBackend</span>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th class="text-center" style="width:70px">RPC</th>
+                            <th class="text-center" style="width:70px">Bob</th>
+                            <th class="text-center" style="width:70px">Direct</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="table-secondary"><td colspan="4"><strong>Wallet</strong></td></tr>
+                        @BackendRow("Balance Lookup", "/wallet/balance", true, true, true)
+                        @BackendRow("Asset Portfolio", "/wallet/assets", true, false, false)
+                        @BackendRow("Transfer History", "/wallet/transfers", false, true, false)
+                        @BackendRow("Identity Generator", "/wallet/identity", true, true, true, "Offline")
+
+                        <tr class="table-secondary"><td colspan="4"><strong>Transactions</strong></td></tr>
+                        @BackendRow("Send QU", "/tx/send", true, true, true)
+                        @BackendRow("Send to Many", "/tx/send-many", true, true, true)
+                        @BackendRow("Offline Builder", "/tx/offline", true, true, true, "Offline")
+                        @BackendRow("Transaction Lookup", "/tx/lookup", true, true, false, "RPC + Bob")
+                        @BackendRow("Import & Broadcast", "/tx/import", true, false, false)
+                        @BackendRow("Transaction History", "/tx/history", true, true, true, "Local")
+
+                        <tr class="table-secondary"><td colspan="4"><strong>Smart Contracts</strong></td></tr>
+                        @BackendRow("Contract Browser", "/contracts/browser", true, true, true)
+                        @BackendRow("Qx Assets", "/tx/qx", true, true, true)
+                        @BackendRow("QSwap", "/tx/qswap", true, true, true)
+                        @BackendRow("QEarn Staking", "/tx/qearn", true, true, true)
+                        @BackendRow("QBond", "/tx/qbond", true, true, true)
+                        @BackendRow("Quottery", "/tx/quottery", true, true, true)
+                        @BackendRow("QUtil", "/tx/qutil", true, true, true)
+                        @BackendRow("QVault", "/tx/qvault", true, true, true)
+                        @BackendRow("MSVault", "/tx/msvault", true, true, true)
+                        @BackendRow("Nostromo", "/tx/nostromo", true, true, true)
+                        @BackendRow("IPO Bid", "/tx/ipobid", true, true, true)
+                        @BackendRow("Burn QU", "/tx/burn", true, true, true)
+
+                        <tr class="table-secondary"><td colspan="4"><strong>Explorer</strong></td></tr>
+                        @BackendRow("Tick Data", "/explorer/tick", true, false, false)
+                        @BackendRow("Computor List", "/explorer/computors", true, false, false)
+                        @BackendRow("Active IPOs", "/explorer/ipos", true, false, false)
+                        @BackendRow("Check Tx in Tick", "/explorer/checktx", true, false, false)
+                        @BackendRow("IPO Status", "/explorer/ipostatus", false, false, true)
+                        @BackendRow("Log Viewer", "/explorer/logs", false, true, false)
+
+                        <tr class="table-secondary"><td colspan="4"><strong>Tools</strong></td></tr>
+                        @BackendRow("Sign / Verify Message", "/tools/sign-verify", true, true, true, "Offline")
+                        @BackendRow("Crypto Toolkit", "/tools/crypto", true, true, true, "Offline")
+                        @BackendRow("Oracle Machine", "/tools/oracle", true, false, true, "Lookup: Direct only")
+                        @BackendRow("Bob Playground", "/tools/bob-playground", false, true, false)
+
+                        <tr class="table-secondary"><td colspan="4"><strong>Node Operations</strong></td></tr>
+                        @BackendRow("Node Peers", "/node/peers", false, false, true)
+                        @BackendRow("Node Management", "/node/management", false, false, true)
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 @code {
+    private static RenderFragment BackendRow(string name, string href, bool rpc, bool bob, bool direct, string? note = null) => __builder =>
+    {
+        <tr>
+            <td>
+                <a href="@href">@name</a>
+                @if (note != null)
+                {
+                    <span class="text-muted small ms-1">(@note)</span>
+                }
+            </td>
+            <td class="text-center">@(rpc ? "\u2714" : "\u2014")</td>
+            <td class="text-center">@(bob ? "\u2714" : "\u2014")</td>
+            <td class="text-center">@(direct ? "\u2714" : "\u2014")</td>
+        </tr>
+    };
+
     private Qubic.Core.Entities.CurrentTickInfo? _tickInfo;
     private Qubic.Bob.Models.ChainIdResponse? _chainId;
     private string? _clientVersion;
