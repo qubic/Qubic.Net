@@ -144,13 +144,6 @@ a.nav-section-label:hover {
     opacity: 1;
 }
 
-/* Auto-tick flash */
-.form-control.border-success {
-    border-color: #198754 !important;
-    box-shadow: 0 0 0 0.15rem rgba(25, 135, 84, 0.35);
-    transition: box-shadow 0.3s, border-color 0.3s;
-}
-
 /* Hub card styling */
 .hub-card {
     transition: transform 0.15s, box-shadow 0.15s;

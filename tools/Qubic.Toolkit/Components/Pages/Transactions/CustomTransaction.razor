@@ -46,20 +46,24 @@ else
                                   @bind="_payloadHex"></textarea>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label-sm">Target Tick (0 = auto: current + @Settings.TickOffset)</label>
+                        <label class="form-label-sm">Target Tick</label>
                         <div class="input-group input-group-sm">
-                            <input type="number" class="form-control @(_autoTickFlash ? "border-success" : "")"
-                                   @bind="_targetTick" />
-                            <button class="btn btn-outline-secondary" @onclick="SetAutoTick">Auto</button>
+                            <input type="number" class="form-control" @bind="_targetTick" />
+                            @if (_targetTick == 0 && TickMonitor.IsConnected)
+                            {
+                                <span class="input-group-text bg-success text-white">
+                                    Auto: @((TickMonitor.Tick + (uint)Settings.TickOffset).ToString("N0"))
+                                </span>
+                            }
+                            else if (_targetTick == 0)
+                            {
+                                <span class="input-group-text text-muted">Auto +@Settings.TickOffset</span>
+                            }
+                            else
+                            {
+                                <button class="btn btn-outline-secondary" @onclick="() => _targetTick = 0">Auto</button>
+                            }
                         </div>
-                        @if (_autoTickError != null)
-                        {
-                            <div class="small text-danger mt-1">@_autoTickError</div>
-                        }
-                        else if (TickMonitor.IsConnected)
-                        {
-                            <div class="small text-muted mt-1">Current tick: @TickMonitor.Tick.ToString("N0")</div>
-                        }
                     </div>
 
                     <button class="btn btn-primary me-2" @onclick="Send" disabled="@_sending">
@@ -95,8 +99,6 @@ else
     private bool _sending;
     private string? _result;
     private string? _error;
-    private bool _autoTickFlash;
-    private string? _autoTickError;
     private bool _disposed;
 
     protected override void OnInitialized()
@@ -108,23 +110,6 @@ else
     {
         if (_disposed) return;
         InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
-    }
-
-    private async Task SetAutoTick()
-    {
-        _autoTickError = null;
-        try
-        {
-            uint current = TickMonitor.IsConnected
-                ? TickMonitor.Tick
-                : (await Backend.GetTickInfoAsync()).Tick;
-            _targetTick = current + (uint)Settings.TickOffset;
-            _autoTickFlash = true;
-            StateHasChanged();
-            await Task.Delay(600);
-            _autoTickFlash = false;
-        }
-        catch (Exception ex) { _autoTickError = "Could not fetch tick: " + ex.Message; }
     }
 
     private async Task Send()
