@@ -62,25 +62,13 @@ else
         <div class="card">
             <div class="card-header">Participant Bids (@_filledSlots filled)</div>
             <div class="card-body" style="max-height:500px; overflow-y:auto">
-                <table class="table table-sm table-hover mb-0">
-                    <thead>
-                        <tr><th>Slot</th><th>Identity</th><th>Bid (QU)</th></tr>
-                    </thead>
-                    <tbody>
-                        @for (int i = 0; i < 676; i++)
-                        {
-                            var identity = _ipo.GetParticipantIdentity(i);
-                            @if (identity != null)
-                            {
-                                <tr>
-                                    <td>@i</td>
-                                    <td class="mono small">@identity</td>
-                                    <td class="mono">@_ipo.Prices[i].ToString("N0")</td>
-                                </tr>
-                            }
-                        }
-                    </tbody>
-                </table>
+                <DataTable Items="GetIpoBids()">
+                    <DataColumn TItem="IpoBid" Title="Slot" Field="@(b => b.Slot)" />
+                    <DataColumn TItem="IpoBid" Title="Identity" Field="@(b => b.Identity)" Filterable="true">
+                        <AddressDisplay Address="@context.Identity" />
+                    </DataColumn>
+                    <DataColumn TItem="IpoBid" Title="Bid (QU)" Field="@(b => b.Price)" Format="N0" DefaultSort="true" DefaultDescending="true" />
+                </DataTable>
             </div>
         </div>
     }
@@ -137,6 +125,21 @@ else
         {
             _loading = false;
         }
+    }
+
+    private record IpoBid(int Slot, string Identity, long Price);
+
+    private List<IpoBid> GetIpoBids()
+    {
+        if (_ipo == null) return [];
+        var bids = new List<IpoBid>();
+        for (int i = 0; i < 676; i++)
+        {
+            var identity = _ipo.GetParticipantIdentity(i);
+            if (identity != null)
+                bids.Add(new IpoBid(i, identity, _ipo.Prices[i]));
+        }
+        return bids;
     }
 
     private void ComputeSummary()

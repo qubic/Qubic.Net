@@ -174,3 +174,31 @@ a.nav-section-label:hover {
     color: #6c757d;
     margin-bottom: 0.15rem;
 }
+
+/* DataTable sortable headers */
+.sortable-header {
+    cursor: pointer;
+    user-select: none;
+}
+.sortable-header:hover {
+    background-color: rgba(0,0,0,0.04);
+}
+
+/* DataTable filter row */
+.table-filter-row th {
+    padding: 2px 4px;
+}
+.table-filter-row input {
+    font-size: 0.8rem;
+}
+
+/* AddressDisplay */
+.address-copy-btn {
+    font-size: 0.75rem;
+    line-height: 1;
+    vertical-align: baseline;
+    text-decoration: none;
+}
+.address-label {
+    font-weight: 600;
+}

@@ -44,30 +44,16 @@
             }
             else
             {
-                <table class="table table-sm table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Log ID</th>
-                            <th>Tick</th>
-                            <th>Contract</th>
-                            <th>Event Type</th>
-                            <th>Data</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var log in _logs)
-                        {
-                            <tr>
-                                <td class="mono">@log.LogId</td>
-                                <td class="mono">@log.Tick</td>
-                                <td>@log.ContractIndex</td>
-                                <td>@log.EventType</td>
-                                <td class="mono small" style="max-width:400px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"
-                                    title="@log.Data">@(log.Data ?? "")</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                <DataTable Items="_logs">
+                    <DataColumn TItem="Qubic.Bob.Models.BobLogEntry" Title="Log ID" Field="@(l => l.LogId)" />
+                    <DataColumn TItem="Qubic.Bob.Models.BobLogEntry" Title="Tick" Field="@(l => l.Tick)" DefaultSort="true" DefaultDescending="true" />
+                    <DataColumn TItem="Qubic.Bob.Models.BobLogEntry" Title="Contract" Field="@(l => Qubic.Core.QubicContracts.FormatContract(l.ContractIndex))" Filterable="true" />
+                    <DataColumn TItem="Qubic.Bob.Models.BobLogEntry" Title="Event Type" Field="@(l => l.EventType)" Filterable="true" />
+                    <DataColumn TItem="Qubic.Bob.Models.BobLogEntry" Title="Data" Field="@(l => l.Data ?? "")" Sortable="false">
+                        <span class="mono small" style="max-width:400px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:inline-block"
+                              title="@context.Data">@(context.Data ?? "")</span>
+                    </DataColumn>
+                </DataTable>
             }
         </div>
     </div>

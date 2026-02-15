@@ -8,6 +8,7 @@
 @inject TickMonitorService TickMonitor
 @inject TransactionTrackerService TxTracker
 @inject ToolkitSettingsService Settings
+@inject IJSRuntime JS
 
 <h4><i class="bi bi-currency-exchange me-2"></i>Computor-Controlled Fund (CCF)</h4>
 <p class="text-muted">CCF proposals, voting, transfers, and subscription management (Contract 8).</p>
@@ -453,23 +454,22 @@
                     }
                     else
                     {
-                        <table class="table table-sm">
-                            <thead><tr><th>#</th><th>Destination</th><th>Amount (QU)</th><th>Tick</th><th>Success</th><th>URL</th></tr></thead>
-                            <tbody>
-                                @for (int i = 0; i < _transfers.Count; i++)
+                        <DataTable Items="_transfers" ShowRowNumbers="true">
+                            <DataColumn TItem="TransferEntry" Title="Destination" Field="@(t => t.Destination)" Filterable="true">
+                                <AddressDisplay Address="@context.Destination" />
+                            </DataColumn>
+                            <DataColumn TItem="TransferEntry" Title="Amount (QU)" Field="@(t => t.Amount)" Format="N0" />
+                            <DataColumn TItem="TransferEntry" Title="Tick" Field="@(t => t.Tick)" DefaultSort="true" DefaultDescending="true" />
+                            <DataColumn TItem="TransferEntry" Title="Success" Field="@(t => t.Success ? "Yes" : "No")" />
+                            <DataColumn TItem="TransferEntry" Title="URL" Field="@(t => t.Url)" Sortable="false">
+                                @if (!string.IsNullOrEmpty(context.Url))
                                 {
-                                    var t = _transfers[i];
-                                    <tr>
-                                        <td>@(i + 1)</td>
-                                        <td class="mono small">@TruncateId(t.Destination)</td>
-                                        <td>@t.Amount.ToString("N0")</td>
-                                        <td>@t.Tick</td>
-                                        <td>@(t.Success ? "Yes" : "No")</td>
-                                        <td class="small text-truncate" style="max-width:200px">@t.Url</td>
-                                    </tr>
+                                    <a href="#" class="small text-truncate d-inline-block" style="max-width:200px"
+                                       @onclick="() => ConfirmOpenUrl(context.Url)" @onclick:preventDefault
+                                       title="@context.Url">@context.Url</a>
                                 }
-                            </tbody>
-                        </table>
+                            </DataColumn>
+                        </DataTable>
                     }
                 </div>
             }
@@ -495,30 +495,31 @@
                     }
                     else
                     {
-                        <table class="table table-sm">
-                            <thead><tr><th>#</th><th>Destination</th><th>Amount (QU)</th><th>Tick</th><th>Period</th><th>Success</th><th>URL</th></tr></thead>
-                            <tbody>
-                                @for (int i = 0; i < _payments.Count; i++)
+                        <DataTable Items="_payments" ShowRowNumbers="true">
+                            <DataColumn TItem="PaymentEntry" Title="Destination" Field="@(p => p.Destination)" Filterable="true">
+                                <AddressDisplay Address="@context.Destination" />
+                            </DataColumn>
+                            <DataColumn TItem="PaymentEntry" Title="Amount (QU)" Field="@(p => p.Amount)" Format="N0" />
+                            <DataColumn TItem="PaymentEntry" Title="Tick" Field="@(p => p.Tick)" DefaultSort="true" DefaultDescending="true" />
+                            <DataColumn TItem="PaymentEntry" Title="Period" Field="@(p => p.PeriodIndex)" />
+                            <DataColumn TItem="PaymentEntry" Title="Success" Field="@(p => p.Success ? "Yes" : "No")" />
+                            <DataColumn TItem="PaymentEntry" Title="URL" Field="@(p => p.Url)" Sortable="false">
+                                @if (!string.IsNullOrEmpty(context.Url))
                                 {
-                                    var p = _payments[i];
-                                    <tr>
-                                        <td>@(i + 1)</td>
-                                        <td class="mono small">@TruncateId(p.Destination)</td>
-                                        <td>@p.Amount.ToString("N0")</td>
-                                        <td>@p.Tick</td>
-                                        <td>@p.PeriodIndex</td>
-                                        <td>@(p.Success ? "Yes" : "No")</td>
-                                        <td class="small text-truncate" style="max-width:200px">@p.Url</td>
-                                    </tr>
+                                    <a href="#" class="small text-truncate d-inline-block" style="max-width:200px"
+                                       @onclick="() => ConfirmOpenUrl(context.Url)" @onclick:preventDefault
+                                       title="@context.Url">@context.Url</a>
                                 }
-                            </tbody>
-                        </table>
+                            </DataColumn>
+                        </DataTable>
                     }
                 </div>
             }
         </div>
         break;
 }
+
+<ConfirmDialog @ref="_confirmDialog" Title="Open external URL?" IconClass="bi-shield-exclamation" ConfirmText="Open" />
 
 @if (_result != null)
 {
@@ -589,6 +590,9 @@
 
     // ── Payments ──
     List<PaymentEntry>? _payments;
+
+    // ── URL confirm ──
+    ConfirmDialog _confirmDialog = null!;
 
     // ── Records ──
     record CcfParsedProposal(ushort Index, string Proposer, string Url, ushort Epoch, ushort Type, uint Tick,
@@ -1051,7 +1055,6 @@
                     SafeIdentityFromPk(e.Destination),
                     SafeUrlFromBytes(e.Url),
                     e.Amount, e.Tick, e.Success))
-                .OrderByDescending(e => e.Tick)
                 .ToList();
         }
         catch (Exception ex) { _error = ex.Message; }
@@ -1075,11 +1078,22 @@
                     SafeIdentityFromPk(e.Destination),
                     SafeUrlFromBytes(e.Url),
                     e.Amount, e.Tick, e.PeriodIndex, e.Success))
-                .OrderByDescending(e => e.Tick)
                 .ToList();
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _loading = false; }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // URL confirm
+    // ══════════════════════════════════════════════════════════
+
+    async Task ConfirmOpenUrl(string url)
+    {
+        var confirmed = await _confirmDialog.ShowAsync(
+            $"This link was provided by a CCF proposal and may be potentially dangerous.\n\n{url}");
+        if (confirmed)
+            await JS.InvokeVoidAsync("open", url, "_blank");
     }
 
     // ══════════════════════════════════════════════════════════

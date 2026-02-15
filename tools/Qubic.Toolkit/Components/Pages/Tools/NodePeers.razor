@@ -56,35 +56,14 @@ else
                 }
                 else
                 {
-                    <table class="table table-sm table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>IP Address</th>
-                                @if (_depth > 1)
-                                {
-                                    <th>Discovered At Depth</th>
-                                    <th>Reported By</th>
-                                }
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @{ var idx = 0; }
-                            @foreach (var peer in _results.OrderBy(p => p.Depth).ThenBy(p => p.Ip))
-                            {
-                                idx++;
-                                <tr>
-                                    <td>@idx</td>
-                                    <td class="mono">@peer.Ip</td>
-                                    @if (_depth > 1)
-                                    {
-                                        <td>@peer.Depth</td>
-                                        <td class="mono text-muted small">@peer.Source</td>
-                                    }
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
+                    <DataTable Items="_results" ShowRowNumbers="true">
+                        <DataColumn TItem="PeerEntry" Title="IP Address" Field="@(p => p.Ip)" Filterable="true" Class="mono" DefaultSort="true" />
+                        @if (_depth > 1)
+                        {
+                            <DataColumn TItem="PeerEntry" Title="Depth" Field="@(p => p.Depth)" />
+                            <DataColumn TItem="PeerEntry" Title="Reported By" Field="@(p => p.Source)" Filterable="true" Class="mono text-muted small" />
+                        }
+                    </DataTable>
                 }
             </div>
         </div>

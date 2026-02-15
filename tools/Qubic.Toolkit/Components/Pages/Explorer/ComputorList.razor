@@ -30,20 +30,12 @@
                 Epoch @list.Epoch — Tick @list.TickNumber — @list.Identities.Count computors
             </div>
             <div class="card-body" style="max-height:500px; overflow-y:auto">
-                <table class="table table-sm table-hover mb-0">
-                    <thead>
-                        <tr><th>#</th><th>Identity</th></tr>
-                    </thead>
-                    <tbody>
-                        @for (int i = 0; i < list.Identities.Count; i++)
-                        {
-                            <tr>
-                                <td>@i</td>
-                                <td class="mono small">@list.Identities[i]</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                <DataTable Items="ToComputorRows(list.Identities)">
+                    <DataColumn TItem="ComputorRow" Title="#" Field="@(r => r.Index)" Width="60px" />
+                    <DataColumn TItem="ComputorRow" Title="Identity" Field="@(r => r.Identity)" Filterable="true">
+                        <AddressDisplay Address="@context.Identity" />
+                    </DataColumn>
+                </DataTable>
             </div>
         </div>
     }
@@ -65,6 +57,10 @@
     }
     private bool _loading;
     private string? _error;
+
+    record ComputorRow(int Index, string Identity);
+    static List<ComputorRow> ToComputorRows(IReadOnlyList<string> ids) =>
+        ids.Select((id, i) => new ComputorRow(i, id)).ToList();
 
     private async Task Lookup()
     {

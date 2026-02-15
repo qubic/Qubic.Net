@@ -81,6 +81,28 @@ public static class QubicContracts
     public const int Qduel = 23;
 
     /// <summary>
+    /// Gets the human-readable name for a contract index, or null if unknown.
+    /// </summary>
+    public static string? GetContractName(int contractIndex) => contractIndex switch
+    {
+        Core => "Core", Qx => "QX", Quottery => "Quottery", Random => "Random",
+        Qutil => "QUtil", Mlm => "MLM", Gqmprop => "GQMProp", Swatch => "Swatch",
+        Ccf => "CCF", Qearn => "QEarn", Qvault => "QVault", Msvault => "MSVault",
+        Qbay => "QBay", Qswap => "QSwap", Nost => "Nostromo", Qdraw => "QDraw",
+        Rl => "RL", Qbond => "QBond", Qip => "QIP", Qraffle => "QRaffle",
+        Qrwa => "QRWA", Qrp => "QRP", Qtf => "QTF", Qduel => "QDuel", _ => null
+    };
+
+    /// <summary>
+    /// Gets formatted contract display string: "NAME (INDEX)" or just "INDEX" if unknown.
+    /// </summary>
+    public static string FormatContract(int contractIndex)
+    {
+        var name = GetContractName(contractIndex);
+        return name != null ? $"{name} ({contractIndex})" : contractIndex.ToString();
+    }
+
+    /// <summary>
     /// Gets the contract public key for a given contract index.
     /// Contract addresses are encoded as: contractIndex in first byte, rest zeros.
     /// </summary>

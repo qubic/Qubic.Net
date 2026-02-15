@@ -52,40 +52,29 @@
             }
             else
             {
-                <table class="table table-sm table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Hash</th>
-                            <th>Source</th>
-                            <th>Destination</th>
-                            <th>Amount</th>
-                            <th>Type</th>
-                            <th>Money Flew</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var tx in _transactions)
+                <DataTable Items="_transactions">
+                    <DataColumn TItem="Qubic.Rpc.Models.TransactionInfo" Title="Hash" Field="@(tx => tx.Hash)" Sortable="false">
+                        <span class="mono small">@context.Hash[..16]...</span>
+                    </DataColumn>
+                    <DataColumn TItem="Qubic.Rpc.Models.TransactionInfo" Title="Source" Field="@(tx => tx.Source)" Filterable="true">
+                        <AddressDisplay Address="@context.Source" />
+                    </DataColumn>
+                    <DataColumn TItem="Qubic.Rpc.Models.TransactionInfo" Title="Destination" Field="@(tx => tx.Destination)" Filterable="true">
+                        <AddressDisplay Address="@context.Destination" />
+                    </DataColumn>
+                    <DataColumn TItem="Qubic.Rpc.Models.TransactionInfo" Title="Amount" Field="@(tx => tx.Amount)" Class="mono" />
+                    <DataColumn TItem="Qubic.Rpc.Models.TransactionInfo" Title="Type" Field="@(tx => tx.InputType)" Class="mono" />
+                    <DataColumn TItem="Qubic.Rpc.Models.TransactionInfo" Title="Money Flew" Field="@(tx => tx.MoneyFlew == true ? "Yes" : tx.MoneyFlew == false ? "No" : "")">
+                        @if (context.MoneyFlew == true)
                         {
-                            <tr>
-                                <td class="mono small">@tx.Hash[..16]...</td>
-                                <td class="mono small">@tx.Source[..16]...</td>
-                                <td class="mono small">@tx.Destination[..16]...</td>
-                                <td class="mono">@tx.Amount</td>
-                                <td class="mono">@tx.InputType</td>
-                                <td>
-                                    @if (tx.MoneyFlew == true)
-                                    {
-                                        <span class="badge bg-success">Yes</span>
-                                    }
-                                    else if (tx.MoneyFlew == false)
-                                    {
-                                        <span class="badge bg-secondary">No</span>
-                                    }
-                                </td>
-                            </tr>
+                            <span class="badge bg-success">Yes</span>
                         }
-                    </tbody>
-                </table>
+                        else if (context.MoneyFlew == false)
+                        {
+                            <span class="badge bg-secondary">No</span>
+                        }
+                    </DataColumn>
+                </DataTable>
             }
         </div>
     </div>

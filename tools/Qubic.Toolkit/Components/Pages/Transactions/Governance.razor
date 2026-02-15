@@ -435,21 +435,13 @@
                     }
                     else
                     {
-                        <table class="table table-sm">
-                            <thead><tr><th>#</th><th>Destination</th><th>Amount</th><th>First Epoch</th></tr></thead>
-                            <tbody>
-                                @for (int i = 0; i < _revEntries.Count; i++)
-                                {
-                                    var e = _revEntries[i];
-                                    <tr>
-                                        <td>@(i + 1)</td>
-                                        <td class="mono small">@e.Destination</td>
-                                        <td>@FormatMillionths(e.MillionthAmount)</td>
-                                        <td>@e.FirstEpoch</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
+                        <DataTable Items="_revEntries" ShowRowNumbers="true">
+                            <DataColumn TItem="RevDonEntry" Title="Destination" Field="@(e => e.Destination)" Filterable="true">
+                                <AddressDisplay Address="@context.Destination" />
+                            </DataColumn>
+                            <DataColumn TItem="RevDonEntry" Title="Amount" Field="@(e => FormatMillionths(e.MillionthAmount))" />
+                            <DataColumn TItem="RevDonEntry" Title="First Epoch" Field="@(e => e.FirstEpoch)" />
+                        </DataTable>
                     }
                 </div>
             }

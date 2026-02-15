@@ -49,45 +49,31 @@
             }
             else
             {
-                <table class="table table-sm table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Tick</th>
-                            <th>Direction</th>
-                            <th>Counterparty</th>
-                            <th>Amount</th>
-                            <th>Hash</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var t in _transfers)
+                <DataTable Items="_transfers">
+                    <DataColumn TItem="Qubic.Core.Entities.QubicTransfer" Title="Tick" Field="@(t => t.Tick)" DefaultSort="true" DefaultDescending="true" />
+                    <DataColumn TItem="Qubic.Core.Entities.QubicTransfer" Title="Direction" Field="@(t => IsSender(t) ? "OUT" : "IN")">
+                        @{ var isSender = IsSender(context); }
+                        <span class="badge @(isSender ? "bg-danger" : "bg-success")">@(isSender ? "OUT" : "IN")</span>
+                    </DataColumn>
+                    <DataColumn TItem="Qubic.Core.Entities.QubicTransfer" Title="Counterparty"
+                                Field="@(t => IsSender(t) ? t.Destination.Identity : t.Source.Identity)" Filterable="true">
+                        <AddressDisplay Address="@(IsSender(context) ? context.Destination.Identity : context.Source.Identity)" />
+                    </DataColumn>
+                    <DataColumn TItem="Qubic.Core.Entities.QubicTransfer" Title="Amount" Field="@(t => t.Amount)" Format="N0" Class="mono" />
+                    <DataColumn TItem="Qubic.Core.Entities.QubicTransfer" Title="Hash" Field="@(t => t.TransactionHash)" Sortable="false">
+                        <span class="mono small">@context.TransactionHash[..16]...</span>
+                    </DataColumn>
+                    <DataColumn TItem="Qubic.Core.Entities.QubicTransfer" Title="Status" Field="@(t => t.Success == true ? "OK" : t.Success == false ? "Failed" : "")">
+                        @if (context.Success == true)
                         {
-                            var isSender = string.Equals(t.Source.Identity, _identity?.Trim(), StringComparison.OrdinalIgnoreCase);
-                            <tr>
-                                <td class="mono">@t.Tick</td>
-                                <td>
-                                    <span class="badge @(isSender ? "bg-danger" : "bg-success")">
-                                        @(isSender ? "OUT" : "IN")
-                                    </span>
-                                </td>
-                                <td class="mono small">@((isSender ? t.Destination.Identity : t.Source.Identity)[..20])...</td>
-                                <td class="mono">@t.Amount.ToString("N0")</td>
-                                <td class="mono small">@t.TransactionHash[..16]...</td>
-                                <td>
-                                    @if (t.Success == true)
-                                    {
-                                        <span class="badge bg-success">OK</span>
-                                    }
-                                    else if (t.Success == false)
-                                    {
-                                        <span class="badge bg-danger">Failed</span>
-                                    }
-                                </td>
-                            </tr>
+                            <span class="badge bg-success">OK</span>
                         }
-                    </tbody>
-                </table>
+                        else if (context.Success == false)
+                        {
+                            <span class="badge bg-danger">Failed</span>
+                        }
+                    </DataColumn>
+                </DataTable>
             }
         </div>
     </div>
@@ -100,6 +86,9 @@
     private IReadOnlyList<Qubic.Core.Entities.QubicTransfer>? _transfers;
     private bool _loading;
     private string? _error;
+
+    bool IsSender(Qubic.Core.Entities.QubicTransfer t) =>
+        string.Equals(t.Source.Identity, _identity?.Trim(), StringComparison.OrdinalIgnoreCase);
 
     private async Task Lookup()
     {

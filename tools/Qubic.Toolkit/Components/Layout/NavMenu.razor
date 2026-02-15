@@ -96,10 +96,7 @@
         {
             <div class="nav-sub-links">
                 @NavItem("/wallet/balance", "bi-currency-exchange", "Balance Lookup")
-                @if (IsRpc)
-                {
-                    @NavItem("/wallet/assets", "bi-grid-3x3-gap", "Asset Portfolio")
-                }
+                @NavItem("/wallet/assets", "bi-grid-3x3-gap", "Asset Portfolio")
                 @NavItem("/tx/lookup", "bi-search", "Tx Lookup")
                 @if (IsBob)
                 {

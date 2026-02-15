@@ -36,29 +36,17 @@
 </div>
 
 <h5>Contracts</h5>
-<table class="table table-sm table-hover">
-    <thead>
-        <tr>
-            <th>Index</th>
-            <th>Name</th>
-            <th>Functions</th>
-            <th>Empty-Input</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var contract in Discovery.Contracts)
-        {
-            <tr>
-                <td>@contract.ContractIndex</td>
-                <td><strong>@contract.Name</strong></td>
-                <td>@contract.Functions.Count</td>
-                <td>@contract.Functions.Count(f => f.IsEmptyInput)</td>
-                <td><a href="/contracts/@contract.ContractIndex" class="btn btn-sm btn-outline-primary">Open</a></td>
-            </tr>
-        }
-    </tbody>
-</table>
+<DataTable Items="Discovery.Contracts">
+    <DataColumn TItem="ContractInfo" Title="Contract" Field="@(c => Qubic.Core.QubicContracts.FormatContract(c.ContractIndex))" />
+    <DataColumn TItem="ContractInfo" Title="Name" Field="@(c => c.Name)" Filterable="true">
+        <strong>@context.Name</strong>
+    </DataColumn>
+    <DataColumn TItem="ContractInfo" Title="Functions" Field="@(c => c.Functions.Count)" />
+    <DataColumn TItem="ContractInfo" Title="Empty-Input" Field="@(c => c.Functions.Count(f => f.IsEmptyInput))" />
+    <DataColumn TItem="ContractInfo" Title="" Sortable="false">
+        <a href="/contracts/@context.ContractIndex" class="btn btn-sm btn-outline-primary">Open</a>
+    </DataColumn>
+</DataTable>
 
 @code {
     private bool _testing;

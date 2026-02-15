@@ -77,22 +77,12 @@ else
         <div class="card mb-4">
             <div class="card-header">Mining Score Ranking (@_miningRankings.Count miners)</div>
             <div class="card-body p-0" style="max-height:400px; overflow-y:auto">
-                <table class="table table-sm table-hover mb-0">
-                    <thead class="table-light sticky-top">
-                        <tr><th>#</th><th>Identity</th><th>Score</th></tr>
-                    </thead>
-                    <tbody>
-                        @for (int i = 0; i < _miningRankings.Count; i++)
-                        {
-                            var entry = _miningRankings[i];
-                            <tr>
-                                <td>@(i + 1)</td>
-                                <td class="mono small">@entry.Identity</td>
-                                <td class="mono">@entry.Score.ToString("N0")</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                <DataTable Items="_miningRankings" ShowRowNumbers="true">
+                    <DataColumn TItem="(string Identity, uint Score)" Title="Identity" Field="@(e => e.Identity)" Filterable="true">
+                        <AddressDisplay Address="@context.Identity" />
+                    </DataColumn>
+                    <DataColumn TItem="(string Identity, uint Score)" Title="Score" Field="@(e => e.Score)" Format="N0" DefaultSort="true" DefaultDescending="true" />
+                </DataTable>
             </div>
         </div>
     }
@@ -105,10 +95,9 @@ else
                 <div class="card-body">
                     <h6 class="card-title">Refresh Peer List</h6>
                     <p class="small text-muted mb-2">Close all connections and refresh. (F4)</p>
-                    <button class="btn btn-warning btn-sm" @onclick='() => { _confirmAction = () => SendSimple(9, "refreshPeers", "Peer list refresh triggered."); RequestConfirm("refreshPeers"); }' disabled="@(IsLoading("refreshPeers") || IsConfirming("refreshPeers"))">
+                    <button class="btn btn-warning btn-sm" @onclick='() => ConfirmAndRun("refreshPeers", "Refresh the peer list?", () => SendSimple(9, "refreshPeers", "Peer list refresh triggered."))' disabled="@IsLoading("refreshPeers")">
                         Refresh
                     </button>
-                    @RenderConfirm("refreshPeers", "Refresh the peer list?")
                     @RenderFeedback("refreshPeers")
                 </div>
             </div>
@@ -119,10 +108,9 @@ else
                 <div class="card-body">
                     <h6 class="card-title">Force Next Tick</h6>
                     <p class="small text-muted mb-2">Force an empty tick. (F5)</p>
-                    <button class="btn btn-warning btn-sm" @onclick='() => { _confirmAction = () => SendSimple(10, "forceTick", "Force next tick triggered."); RequestConfirm("forceTick"); }' disabled="@(IsLoading("forceTick") || IsConfirming("forceTick"))">
+                    <button class="btn btn-warning btn-sm" @onclick='() => ConfirmAndRun("forceTick", "Force an empty tick?", () => SendSimple(10, "forceTick", "Force next tick triggered."))' disabled="@IsLoading("forceTick")">
                         Force Tick
                     </button>
-                    @RenderConfirm("forceTick", "Force an empty tick?")
                     @RenderFeedback("forceTick")
                 </div>
             </div>
@@ -133,10 +121,9 @@ else
                 <div class="card-body">
                     <h6 class="card-title">Reissue Vote</h6>
                     <p class="small text-muted mb-2">Re-send the computor vote. (F9)</p>
-                    <button class="btn btn-warning btn-sm" @onclick='() => { _confirmAction = () => SendSimple(11, "reissueVote", "Vote reissued."); RequestConfirm("reissueVote"); }' disabled="@(IsLoading("reissueVote") || IsConfirming("reissueVote"))">
+                    <button class="btn btn-warning btn-sm" @onclick='() => ConfirmAndRun("reissueVote", "Reissue the computor vote?", () => SendSimple(11, "reissueVote", "Vote reissued."))' disabled="@IsLoading("reissueVote")">
                         Reissue
                     </button>
-                    @RenderConfirm("reissueVote", "Reissue the computor vote?")
                     @RenderFeedback("reissueVote")
                 </div>
             </div>
@@ -147,10 +134,9 @@ else
                 <div class="card-body">
                     <h6 class="card-title">Save Snapshot</h6>
                     <p class="small text-muted mb-2">Trigger a node snapshot save. (F8)</p>
-                    <button class="btn btn-warning btn-sm" @onclick='() => { _confirmAction = () => SaveSnapshot(); RequestConfirm("snapshot"); }' disabled="@(IsLoading("snapshot") || IsConfirming("snapshot"))">
+                    <button class="btn btn-warning btn-sm" @onclick='() => ConfirmAndRun("snapshot", "Save a node snapshot?", SaveSnapshot)' disabled="@IsLoading("snapshot")">
                         Save
                     </button>
-                    @RenderConfirm("snapshot", "Save a node snapshot?")
                     @RenderFeedback("snapshot")
                 </div>
             </div>
@@ -161,10 +147,9 @@ else
                 <div class="card-body">
                     <h6 class="card-title">Force Switch Epoch</h6>
                     <p class="small text-muted mb-2">Force epoch transition. (F7)</p>
-                    <button class="btn btn-danger btn-sm" @onclick='() => { _confirmAction = () => SendSimple(15, "switchEpoch", "Epoch switch triggered."); RequestConfirm("switchEpoch"); }' disabled="@(IsLoading("switchEpoch") || IsConfirming("switchEpoch"))">
+                    <button class="btn btn-danger btn-sm" @onclick='() => ConfirmAndRun("switchEpoch", "Force epoch transition? This is a destructive operation.", () => SendSimple(15, "switchEpoch", "Epoch switch triggered."))' disabled="@IsLoading("switchEpoch")">
                         Switch
                     </button>
-                    @RenderConfirm("switchEpoch", "Force epoch transition? This is a destructive operation.")
                     @RenderFeedback("switchEpoch")
                 </div>
             </div>
@@ -175,10 +160,9 @@ else
                 <div class="card-body">
                     <h6 class="card-title">Continue Switch Epoch</h6>
                     <p class="small text-muted mb-2">Continue epoch switch on log-enabled nodes. (F10)</p>
-                    <button class="btn btn-danger btn-sm" @onclick='() => { _confirmAction = () => SendSimple(16, "continueEpoch", "Continue epoch switch sent."); RequestConfirm("continueEpoch"); }' disabled="@(IsLoading("continueEpoch") || IsConfirming("continueEpoch"))">
+                    <button class="btn btn-danger btn-sm" @onclick='() => ConfirmAndRun("continueEpoch", "Continue epoch switch?", () => SendSimple(16, "continueEpoch", "Continue epoch switch sent."))' disabled="@IsLoading("continueEpoch")">
                         Continue
                     </button>
-                    @RenderConfirm("continueEpoch", "Continue epoch switch?")
                     @RenderFeedback("continueEpoch")
                 </div>
             </div>
@@ -200,10 +184,9 @@ else
                             <option value="0">Auxiliary</option>
                         </select>
                     </div>
-                    <button class="btn btn-warning btn-sm" @onclick='() => { _confirmAction = () => ToggleMainAux(); RequestConfirm("toggle"); }' disabled="@(IsLoading("toggle") || IsConfirming("toggle"))">
+                    <button class="btn btn-warning btn-sm" @onclick='() => ConfirmAndRun("toggle", $"Set node to {(_toggleMode == 1 ? "Main" : "Auxiliary")} mode?", ToggleMainAux)' disabled="@IsLoading("toggle")">
                         Set Mode
                     </button>
-                    @RenderConfirm("toggle", $"Set node to {(_toggleMode == 1 ? "Main" : "Auxiliary")} mode?")
                     @RenderFeedback("toggle")
                 </div>
             </div>
@@ -224,10 +207,9 @@ else
                     <div class="mb-2">
                         <input type="number" class="form-control form-control-sm" @bind="_thresholdAlgoType" placeholder="Algo type index" />
                     </div>
-                    <button class="btn btn-warning btn-sm" @onclick='() => { _confirmAction = () => SetSolutionThreshold(); RequestConfirm("threshold"); }' disabled="@(IsLoading("threshold") || IsConfirming("threshold"))">
+                    <button class="btn btn-warning btn-sm" @onclick='() => ConfirmAndRun("threshold", $"Set solution threshold to {_thresholdValue} for epoch {_thresholdEpoch}?", SetSolutionThreshold)' disabled="@IsLoading("threshold")">
                         Set
                     </button>
-                    @RenderConfirm("threshold", $"Set solution threshold to {_thresholdValue} for epoch {_thresholdEpoch}?")
                     @RenderFeedback("threshold")
                 </div>
             </div>
@@ -239,10 +221,9 @@ else
                 <div class="card-body">
                     <h6 class="card-title">Sync Time</h6>
                     <p class="small text-muted mb-2">Set the node's clock to your current UTC time.</p>
-                    <button class="btn btn-warning btn-sm" @onclick='() => { _confirmAction = () => SyncTime(); RequestConfirm("syncTime"); }' disabled="@(IsLoading("syncTime") || IsConfirming("syncTime"))">
+                    <button class="btn btn-warning btn-sm" @onclick='() => ConfirmAndRun("syncTime", "Sync the node clock to your current UTC time?", SyncTime)' disabled="@IsLoading("syncTime")">
                         Sync Now
                     </button>
-                    @RenderConfirm("syncTime", "Sync the node clock to your current UTC time?")
                     @RenderFeedback("syncTime")
                 </div>
             </div>
@@ -261,11 +242,10 @@ else
                             <option value="2">Full logging</option>
                         </select>
                     </div>
-                    <button class="btn btn-warning btn-sm" @onclick='() => { _confirmAction = () => SetLoggingMode(); RequestConfirm("logging"); }' disabled="@(IsLoading("logging") || IsConfirming("logging"))">
+                    @{ var logLabel = _loggingMode switch { 0 => "Disabled", 1 => "Low cost", 2 => "Full", _ => _loggingMode.ToString() }; }
+                    <button class="btn btn-warning btn-sm" @onclick='() => ConfirmAndRun("logging", $"Set logging mode to {logLabel}?", SetLoggingMode)' disabled="@IsLoading("logging")">
                         Set
                     </button>
-                    @{ var logLabel = _loggingMode switch { 0 => "Disabled", 1 => "Low cost", 2 => "Full", _ => _loggingMode.ToString() }; }
-                    @RenderConfirm("logging", $"Set logging mode to {logLabel}?")
                     @RenderFeedback("logging")
                 </div>
             </div>
@@ -283,10 +263,9 @@ else
                     <div class="mb-2">
                         <input type="number" class="form-control form-control-sm" @bind="_feeDenominator" placeholder="Denominator" />
                     </div>
-                    <button class="btn btn-warning btn-sm" @onclick='() => { _confirmAction = () => SetFeeMultiplier(); RequestConfirm("setFee"); }' disabled="@(IsLoading("setFee") || IsConfirming("setFee"))">
+                    <button class="btn btn-warning btn-sm" @onclick='() => ConfirmAndRun("setFee", $"Set fee multiplier to {_feeNumerator} / {_feeDenominator}?", SetFeeMultiplier)' disabled="@IsLoading("setFee")">
                         Set
                     </button>
-                    @RenderConfirm("setFee", $"Set fee multiplier to {_feeNumerator} / {_feeDenominator}?")
                     @RenderFeedback("setFee")
                 </div>
             </div>
@@ -305,10 +284,9 @@ else
                     <div class="mb-2">
                         <input type="number" class="form-control form-control-sm" @bind="_customCommandNumber" placeholder="Command number" />
                     </div>
-                    <button class="btn btn-danger btn-sm" @onclick='() => { _confirmAction = () => SendCustomCommand(); RequestConfirm("custom"); }' disabled="@(IsLoading("custom") || IsConfirming("custom"))">
+                    <button class="btn btn-danger btn-sm" @onclick='() => ConfirmAndRun("custom", $"Send special command {_customCommandNumber}?", SendCustomCommand)' disabled="@IsLoading("custom")">
                         Send
                     </button>
-                    @RenderConfirm("custom", $"Send special command {_customCommandNumber}?")
                     @RenderFeedback("custom")
                 </div>
             </div>
@@ -323,10 +301,9 @@ else
                     <div class="mb-2">
                         <input type="text" class="form-control form-control-sm mono" @bind="_rawPacketHex" placeholder="Hex data (e.g. 0A1B2C...)" />
                     </div>
-                    <button class="btn btn-danger btn-sm" @onclick='() => { _confirmAction = () => SendRawPacket(); RequestConfirm("raw"); }' disabled="@(IsLoading("raw") || IsConfirming("raw"))">
+                    <button class="btn btn-danger btn-sm" @onclick='() => ConfirmAndRun("raw", "Send raw packet to the node?", SendRawPacket)' disabled="@IsLoading("raw")">
                         Send
                     </button>
-                    @RenderConfirm("raw", "Send raw packet to the node?")
                     @RenderFeedback("raw")
                 </div>
             </div>
@@ -334,12 +311,14 @@ else
     </div>
 }
 
+<ConfirmDialog @ref="_confirmDialog" />
+
 @code {
     // ── State ──
     private readonly Dictionary<string, bool> _loading = new();
     private readonly Dictionary<string, string?> _results = new();
     private readonly Dictionary<string, string?> _errors = new();
-    private string? _confirmKey;
+    private ConfirmDialog _confirmDialog = null!;
 
     // Toggle Main/Aux
     private int _toggleMode = 1;
@@ -380,40 +359,11 @@ else
         }
     };
 
-    private bool IsConfirming(string key) => _confirmKey == key;
-
-    private void RequestConfirm(string key)
+    private async Task ConfirmAndRun(string key, string message, Func<Task> action)
     {
-        _confirmKey = key;
         _results[key] = null;
         _errors[key] = null;
-    }
-
-    private void CancelConfirm() => _confirmKey = null;
-
-    private RenderFragment RenderConfirm(string key, string message) => __builder =>
-    {
-        if (_confirmKey == key)
-        {
-            <div class="alert alert-warning mt-2 mb-0 py-1 px-2 small d-flex align-items-center gap-2">
-                <i class="bi bi-exclamation-triangle"></i>
-                <span class="flex-grow-1">@message</span>
-                <button class="btn btn-warning btn-sm py-0" @onclick="ExecuteConfirmed" disabled="@IsLoading(key)">
-                    @(IsLoading(key) ? "Executing..." : "Confirm")
-                </button>
-                <button class="btn btn-outline-secondary btn-sm py-0" @onclick="CancelConfirm" disabled="@IsLoading(key)">Cancel</button>
-            </div>
-        }
-    };
-
-    private Func<Task>? _confirmAction;
-
-    private async Task ExecuteConfirmed()
-    {
-        var action = _confirmAction;
-        _confirmKey = null;
-        _confirmAction = null;
-        if (action != null)
+        if (await _confirmDialog.ShowAsync(message))
             await action();
     }
 

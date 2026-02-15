@@ -37,22 +37,12 @@
             }
             else
             {
-                <table class="table table-sm table-hover mb-0">
-                    <thead>
-                        <tr><th>Asset</th><th>Units</th><th>Contract</th><th>Issuance</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var a in _owned)
-                        {
-                            <tr>
-                                <td class="mono">@(a.Data.IssuedAsset?.Name ?? "?")</td>
-                                <td class="mono">@a.Data.NumberOfUnits</td>
-                                <td>@a.Data.ManagingContractIndex</td>
-                                <td>@a.Data.IssuanceIndex</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                <DataTable Items="_owned">
+                    <DataColumn TItem="Qubic.Rpc.Models.OwnedAssetInfo" Title="Asset" Field="@(a => a.Data.IssuedAsset?.Name ?? "?")" Filterable="true" Class="mono" />
+                    <DataColumn TItem="Qubic.Rpc.Models.OwnedAssetInfo" Title="Units" Field="@(a => a.Data.NumberOfUnits)" Class="mono" />
+                    <DataColumn TItem="Qubic.Rpc.Models.OwnedAssetInfo" Title="Contract" Field="@(a => Qubic.Core.QubicContracts.FormatContract((int)a.Data.ManagingContractIndex))" />
+                    <DataColumn TItem="Qubic.Rpc.Models.OwnedAssetInfo" Title="Issuance" Field="@(a => a.Data.IssuanceIndex)" />
+                </DataTable>
             }
         </div>
     </div>
@@ -69,22 +59,14 @@
             }
             else
             {
-                <table class="table table-sm table-hover mb-0">
-                    <thead>
-                        <tr><th>Asset</th><th>Units</th><th>Possessor</th><th>Contract</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var a in _possessed)
-                        {
-                            <tr>
-                                <td class="mono">@(a.Data.OwnedAsset?.IssuedAsset?.Name ?? "?")</td>
-                                <td class="mono">@a.Data.NumberOfUnits</td>
-                                <td class="mono small">@a.Data.PossessorIdentity[..20]...</td>
-                                <td>@a.Data.ManagingContractIndex</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                <DataTable Items="_possessed">
+                    <DataColumn TItem="Qubic.Rpc.Models.PossessedAssetInfo" Title="Asset" Field="@(a => a.Data.OwnedAsset?.IssuedAsset?.Name ?? "?")" Filterable="true" Class="mono" />
+                    <DataColumn TItem="Qubic.Rpc.Models.PossessedAssetInfo" Title="Units" Field="@(a => a.Data.NumberOfUnits)" Class="mono" />
+                    <DataColumn TItem="Qubic.Rpc.Models.PossessedAssetInfo" Title="Possessor" Field="@(a => a.Data.PossessorIdentity)">
+                        <AddressDisplay Address="@context.Data.PossessorIdentity" />
+                    </DataColumn>
+                    <DataColumn TItem="Qubic.Rpc.Models.PossessedAssetInfo" Title="Contract" Field="@(a => Qubic.Core.QubicContracts.FormatContract((int)a.Data.ManagingContractIndex))" />
+                </DataTable>
             }
         </div>
     </div>
@@ -101,22 +83,14 @@
             }
             else
             {
-                <table class="table table-sm table-hover mb-0">
-                    <thead>
-                        <tr><th>Name</th><th>Issuer</th><th>Type</th><th>Decimals</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var a in _issued)
-                        {
-                            <tr>
-                                <td class="mono">@a.Data.Name</td>
-                                <td class="mono small">@a.Data.IssuerIdentity[..20]...</td>
-                                <td>@a.Data.Type</td>
-                                <td>@a.Data.NumberOfDecimalPlaces</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                <DataTable Items="_issued">
+                    <DataColumn TItem="Qubic.Rpc.Models.IssuedAssetInfo" Title="Name" Field="@(a => a.Data.Name)" Filterable="true" Class="mono" />
+                    <DataColumn TItem="Qubic.Rpc.Models.IssuedAssetInfo" Title="Issuer" Field="@(a => a.Data.IssuerIdentity)">
+                        <AddressDisplay Address="@context.Data.IssuerIdentity" />
+                    </DataColumn>
+                    <DataColumn TItem="Qubic.Rpc.Models.IssuedAssetInfo" Title="Type" Field="@(a => a.Data.Type)" />
+                    <DataColumn TItem="Qubic.Rpc.Models.IssuedAssetInfo" Title="Decimals" Field="@(a => a.Data.NumberOfDecimalPlaces)" />
+                </DataTable>
             }
         </div>
     </div>

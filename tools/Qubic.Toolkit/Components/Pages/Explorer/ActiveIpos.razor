@@ -20,25 +20,13 @@
         <div class="card">
             <div class="card-header">Active IPOs (@_ipos.Count)</div>
             <div class="card-body">
-                <table class="table table-sm table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Contract Index</th>
-                            <th>Asset Name</th>
-                            <th>Contract Identity</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var ipo in _ipos)
-                        {
-                            <tr>
-                                <td class="mono">@ipo.ContractIndex</td>
-                                <td class="mono">@ipo.AssetName</td>
-                                <td class="mono small">@Qubic.Core.QubicContracts.GetContractIdentity((int)ipo.ContractIndex)</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                <DataTable Items="_ipos">
+                    <DataColumn TItem="Qubic.Rpc.Models.IpoInfo" Title="Contract" Field="@(x => Qubic.Core.QubicContracts.FormatContract((int)x.ContractIndex))" />
+                    <DataColumn TItem="Qubic.Rpc.Models.IpoInfo" Title="Asset Name" Field="@(x => x.AssetName)" Filterable="true" />
+                    <DataColumn TItem="Qubic.Rpc.Models.IpoInfo" Title="Contract Identity" Field="@(x => Qubic.Core.QubicContracts.GetContractIdentity((int)x.ContractIndex).ToString())">
+                        <AddressDisplay Address="@(Qubic.Core.QubicContracts.GetContractIdentity((int)context.ContractIndex))" />
+                    </DataColumn>
+                </DataTable>
             </div>
         </div>
     }
