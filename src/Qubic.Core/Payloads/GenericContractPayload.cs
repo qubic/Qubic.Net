@@ -1,6 +1,4 @@
-using Qubic.Core.Payloads;
-
-namespace Qubic.Toolkit.Models;
+namespace Qubic.Core.Payloads;
 
 /// <summary>
 /// Generic ITransactionPayload wrapper for arbitrary contract procedure calls.

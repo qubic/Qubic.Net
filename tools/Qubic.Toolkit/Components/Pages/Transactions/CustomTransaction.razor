@@ -166,7 +166,7 @@ else
 
             // Build payload
             var data = string.IsNullOrWhiteSpace(_payloadHex) ? [] : Convert.FromHexString(_payloadHex.Trim());
-            var payload = new Qubic.Toolkit.Models.GenericContractPayload(_inputType, data);
+            var payload = new GenericContractPayload(_inputType, data);
 
             var tx = Seed.CreateAndSignTransaction(dest, _amount, tick, payload);
             var result = await Backend.BroadcastTransactionAsync(tx);

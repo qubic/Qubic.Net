@@ -345,7 +345,7 @@ else
     private Qubic.Core.Contracts.QubicAsset ParseAsset()
     {
         var issuerPk = Qubic.Core.Entities.QubicIdentity.FromIdentity(_aIssuer.Trim()).PublicKey;
-        var assetName = Qubic.Toolkit.Helpers.AssetNameHelper.ToUlong(_aName.Trim());
+        var assetName = AssetNameHelper.ToUlong(_aName.Trim());
         return new Qubic.Core.Contracts.QubicAsset { Issuer = issuerPk, AssetName = assetName };
     }
 

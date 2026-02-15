@@ -383,7 +383,7 @@
             if (ulong.TryParse(str, out var v))
                 return v;
             if (IsAssetNameField(prop.Name, prop.PropertyType) && str.Length <= 7 && str.All(c => c >= ' ' && c <= '~'))
-                return Qubic.Toolkit.Helpers.AssetNameHelper.ToUlong(str);
+                return AssetNameHelper.ToUlong(str);
             return 0UL;
         }
         if (prop.PropertyType == typeof(long))
@@ -449,7 +449,7 @@
 
         if (value is ulong ul && ul != 0 && IsAssetNameField(name, typeof(ulong)))
         {
-            var decoded = Qubic.Toolkit.Helpers.AssetNameHelper.FromUlong(ul);
+            var decoded = AssetNameHelper.FromUlong(ul);
             if (decoded != null) return $"{ul} ({decoded})";
         }
 

@@ -291,7 +291,7 @@ else
             var tick = await GetTick();
             var payload = new Qubic.Core.Contracts.Nost.CreateProjectPayload
             {
-                TokenName = Qubic.Toolkit.Helpers.AssetNameHelper.ToUlong(_projTokenName.Trim()),
+                TokenName = AssetNameHelper.ToUlong(_projTokenName.Trim()),
                 Supply = _projSupply,
                 StartYear = _projStartYear, StartMonth = _projStartMonth, StartDay = _projStartDay, StartHour = _projStartHour,
                 EndYear = _projEndYear, EndMonth = _projEndMonth, EndDay = _projEndDay, EndHour = _projEndHour
@@ -368,7 +368,7 @@ else
                     var asset = new Qubic.Core.Contracts.QubicAsset
                     {
                         Issuer = Qubic.Core.Entities.QubicIdentity.FromIdentity(_tfrIssuer.Trim()).PublicKey,
-                        AssetName = Qubic.Toolkit.Helpers.AssetNameHelper.ToUlong(_tfrTokenName.Trim())
+                        AssetName = AssetNameHelper.ToUlong(_tfrTokenName.Trim())
                     };
                     var tp = new Qubic.Core.Contracts.Nost.TransferShareManagementRightsPayload
                         { Asset = asset, NumberOfShares = _tfrShares, NewManagingContractIndex = _tfrNewContract };

@@ -419,7 +419,7 @@
 
             var tick = await GetTick();
             var dest = Qubic.Core.Entities.QubicIdentity.FromPublicKey(new byte[32]); // zero address
-            var txPayload = new Qubic.Toolkit.Models.GenericContractPayload(10, payload);
+            var txPayload = new GenericContractPayload(10, payload);
             var tx = Seed.CreateAndSignTransaction(dest, 10, tick, txPayload);
             var result = await Backend.BroadcastTransactionAsync(tx);
 

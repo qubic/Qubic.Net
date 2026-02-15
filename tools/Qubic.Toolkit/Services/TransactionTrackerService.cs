@@ -139,7 +139,7 @@ public sealed class TransactionTrackerService : IDisposable
         else
         {
             var data = string.IsNullOrEmpty(original.PayloadHex) ? [] : Convert.FromHexString(original.PayloadHex);
-            var payload = new Qubic.Toolkit.Models.GenericContractPayload(original.InputType, data);
+            var payload = new Qubic.Core.Payloads.GenericContractPayload(original.InputType, data);
             tx = _seed.CreateAndSignTransaction(dest, original.Amount, newTick, payload);
         }
 
@@ -359,7 +359,7 @@ public sealed class TransactionTrackerService : IDisposable
             {
                 // Contract call with payload
                 var data = string.IsNullOrEmpty(original.PayloadHex) ? [] : Convert.FromHexString(original.PayloadHex);
-                var payload = new Qubic.Toolkit.Models.GenericContractPayload(original.InputType, data);
+                var payload = new Qubic.Core.Payloads.GenericContractPayload(original.InputType, data);
                 tx = _seed.CreateAndSignTransaction(dest, original.Amount, newTick, payload);
             }
 

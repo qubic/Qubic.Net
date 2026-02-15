@@ -1,5 +1,8 @@
-namespace Qubic.Toolkit.Helpers;
+namespace Qubic.Core;
 
+/// <summary>
+/// Encodes and decodes Qubic asset names (up to 7 ASCII characters packed into a ulong).
+/// </summary>
 public static class AssetNameHelper
 {
     /// <summary>
