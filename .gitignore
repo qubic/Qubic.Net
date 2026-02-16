@@ -18,6 +18,7 @@ packages/
 
 ## Publish output
 tools/Qubic.Toolkit/publish/
+tools/Qubic.Net.Wallet/publish/
 
 ## OS
 .DS_Store

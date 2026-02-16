@@ -150,9 +150,10 @@ class Program
             var address = app.Urls.FirstOrDefault() ?? "http://127.0.0.1:5060";
             var authUrl = $"{address}?token={sessionToken}";
             Console.WriteLine($"Qubic.Net Wallet running at {address}");
-            Console.WriteLine($"Session token: {sessionToken}");
             Console.WriteLine();
+            #if DEBUG
             Console.WriteLine($"Open in browser: {authUrl}");
+            #endif
             try
             {
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
