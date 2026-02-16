@@ -362,7 +362,8 @@ else if (_activeLocks.Count > 0 || _autoEndedStatus != null)
         _result = result.TransactionId;
         TxTracker.Track(new TrackedTransaction { Hash = result.TransactionId, Source = Seed.Identity?.ToString() ?? "",
             Destination = dest.ToString(), Amount = amount, TargetTick = tick,
-            InputType = payload.InputType, PayloadHex = Convert.ToHexString(payload.GetPayloadBytes()), Description = desc });
+            InputType = payload.InputType, PayloadHex = Convert.ToHexString(payload.GetPayloadBytes()), Description = desc,
+            RawData = Convert.ToHexString(tx.GetRawBytes()) });
     }
 
     private async Task Lock()

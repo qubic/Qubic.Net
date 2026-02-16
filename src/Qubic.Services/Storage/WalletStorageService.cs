@@ -148,6 +148,37 @@ public sealed class WalletStorageService : IDisposable
         return _db.GetAllWatermarks();
     }
 
+    // ── Import / Export ──
+
+    /// <summary>
+    /// Exports the current database file as a byte array.
+    /// Flushes WAL first to ensure the file contains all data.
+    /// </summary>
+    public byte[] ExportDatabase()
+    {
+        if (!IsOpen || _db.DatabasePath == null)
+            throw new InvalidOperationException("No database is open.");
+
+        _db.Checkpoint();
+        return File.ReadAllBytes(_db.DatabasePath);
+    }
+
+    /// <summary>
+    /// Imports a database file, replacing the current one.
+    /// Stops sync, replaces the file, re-opens, and restarts sync.
+    /// </summary>
+    public void ImportDatabase(byte[] data)
+    {
+        if (!IsOpen || _identity == null)
+            throw new InvalidOperationException("No database is open.");
+
+        var identity = _identity;
+        _sync.Stop();
+        _db.ReplaceAndReopen(data);
+        _sync.Start(identity);
+        OnStateChanged?.Invoke();
+    }
+
     // ── Legacy .txdb migration ──
 
     private void MigrateLegacyTxdb(string seed)

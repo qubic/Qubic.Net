@@ -201,7 +201,8 @@ else
                 Destination = dest.ToString(),
                 Amount = _amount,
                 TargetTick = _resolvedTick,
-                Description = $"Send {FormatQu(_amount)} QU"
+                Description = $"Send {FormatQu(_amount)} QU",
+                RawData = Convert.ToHexString(tx.GetRawBytes())
             });
             _ = LoadBalance();
         }

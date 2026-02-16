@@ -6,6 +6,7 @@
 @inject TransactionTrackerService TxTracker
 @inject QubicSettingsService Settings
 @inject QubicStaticService StaticData
+@inject NavigationManager Nav
 
 <h4>Asset Portfolio</h4>
 <p class="text-muted">View owned, issued, and possessed assets for any identity. Transfer assets and change management rights.</p>
@@ -97,9 +98,10 @@ else if ((_myAskOrders != null && _myAskOrders.Count > 0) || (_myBidOrders != nu
 @if (_owned != null)
 {
     <div class="card mb-3">
-        <div class="card-header">Owned Assets (@_owned.Count)</div>
+        @{ var ownedVisible = _owned.Where(a => long.TryParse(a.Data.NumberOfUnits, out var u) ? u > 0 : true).ToList(); }
+        <div class="card-header">Owned Assets (@ownedVisible.Count)</div>
         <div class="card-body">
-            @if (_owned.Count == 0)
+            @if (ownedVisible.Count == 0)
             {
                 <span class="text-muted">No owned assets.</span>
             }
@@ -112,7 +114,6 @@ else if ((_myAskOrders != null && _myAskOrders.Count > 0) || (_myBidOrders != nu
                                 <th>Asset</th>
                                 <th>Units</th>
                                 <th>Contract</th>
-                                <th>Issuance</th>
                                 @if (Seed.HasSeed)
                                 {
                                     <th>Actions</th>
@@ -120,7 +121,7 @@ else if ((_myAskOrders != null && _myAskOrders.Count > 0) || (_myBidOrders != nu
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var a in _owned)
+                            @foreach (var a in ownedVisible)
                             {
                                 var assetName = a.Data.IssuedAsset?.Name ?? "?";
                                 var issuerIdentity = a.Data.IssuedAsset?.IssuerIdentity ?? "";
@@ -135,7 +136,6 @@ else if ((_myAskOrders != null && _myAskOrders.Count > 0) || (_myBidOrders != nu
                                     </td>
                                     <td class="mono">@a.Data.NumberOfUnits</td>
                                     <td>@Qubic.Core.QubicContracts.FormatContract((int)a.Data.ManagingContractIndex)</td>
-                                    <td>@a.Data.IssuanceIndex</td>
                                     @if (Seed.HasSeed)
                                     {
                                         var units = long.Parse(a.Data.NumberOfUnits);
@@ -152,8 +152,11 @@ else if ((_myAskOrders != null && _myAskOrders.Count > 0) || (_myBidOrders != nu
                                             }
                                             <button class="btn btn-sm btn-outline-primary me-1"
                                                     @onclick="() => OpenTransfer(assetName, issuerIdentity, units)">Transfer</button>
-                                            <button class="btn btn-sm btn-outline-secondary"
+                                            <button class="btn btn-sm btn-outline-secondary me-1"
                                                     @onclick="() => OpenRights(assetName, issuerIdentity, units, (int)a.Data.ManagingContractIndex)">Rights</button>
+                                            <button class="btn btn-sm btn-outline-info"
+                                                    @onclick="() => OpenVaultDeposit(assetName, issuerIdentity)"
+                                                    title="Deposit to MSVault">MSVAULT</button>
                                         </td>
                                     }
                                 </tr>
@@ -168,10 +171,11 @@ else if ((_myAskOrders != null && _myAskOrders.Count > 0) || (_myBidOrders != nu
 
 @if (_possessed != null)
 {
+    var possessedVisible = _possessed.Where(a => long.TryParse(a.Data.NumberOfUnits, out var u) ? u > 0 : true).ToList();
     <div class="card mb-3">
-        <div class="card-header">Possessed Assets (@_possessed.Count)</div>
+        <div class="card-header">Possessed Assets (@possessedVisible.Count)</div>
         <div class="card-body">
-            @if (_possessed.Count == 0)
+            @if (possessedVisible.Count == 0)
             {
                 <span class="text-muted">No possessed assets.</span>
             }
@@ -188,7 +192,7 @@ else if ((_myAskOrders != null && _myAskOrders.Count > 0) || (_myBidOrders != nu
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var a in _possessed)
+                            @foreach (var a in possessedVisible)
                             {
                                 <tr>
                                     <td class="mono">@(a.Data.OwnedAsset?.IssuedAsset?.Name ?? "?")</td>
@@ -594,6 +598,9 @@ else if ((_myAskOrders != null && _myAskOrders.Count > 0) || (_myBidOrders != nu
         _actionRightsFee = StaticData.GetContractFee(currentManagingContract, "Transfer Share Management Rights");
     }
 
+    private void OpenVaultDeposit(string assetName, string issuer)
+        => Nav.NavigateTo($"/msvault?tab=Assets&op=deposit&issuer={Uri.EscapeDataString(issuer)}&asset={Uri.EscapeDataString(assetName)}");
+
     private async Task OpenOrderBook(string assetName, string issuer)
     {
         _actionMode = ActionMode.OrderBook;
@@ -664,7 +671,8 @@ else if ((_myAskOrders != null && _myAskOrders.Count > 0) || (_myBidOrders != nu
             TxTracker.Track(new TrackedTransaction { Hash = result.TransactionId, Source = Seed.Identity?.ToString() ?? "",
                 Destination = dest.ToString(), Amount = 0, TargetTick = tick,
                 InputType = payload.InputType, PayloadHex = Convert.ToHexString(payload.GetPayloadBytes()),
-                Description = $"Cancel Ask {name}: {order.NumberOfShares:N0} @ {order.Price:N0} QU" });
+                Description = $"Cancel Ask {name}: {order.NumberOfShares:N0} @ {order.Price:N0} QU",
+                RawData = Convert.ToHexString(tx.GetRawBytes()) });
             _pendingCancels[key] = result.TransactionId;
         }
         catch { }
@@ -689,7 +697,8 @@ else if ((_myAskOrders != null && _myAskOrders.Count > 0) || (_myBidOrders != nu
             TxTracker.Track(new TrackedTransaction { Hash = result.TransactionId, Source = Seed.Identity?.ToString() ?? "",
                 Destination = dest.ToString(), Amount = 0, TargetTick = tick,
                 InputType = payload.InputType, PayloadHex = Convert.ToHexString(payload.GetPayloadBytes()),
-                Description = $"Cancel Bid {name}: {order.NumberOfShares:N0} @ {order.Price:N0} QU" });
+                Description = $"Cancel Bid {name}: {order.NumberOfShares:N0} @ {order.Price:N0} QU",
+                RawData = Convert.ToHexString(tx.GetRawBytes()) });
             _pendingCancels[key] = result.TransactionId;
         }
         catch { }
@@ -759,7 +768,8 @@ else if ((_myAskOrders != null && _myAskOrders.Count > 0) || (_myBidOrders != nu
             TxTracker.Track(new TrackedTransaction { Hash = result.TransactionId, Source = Seed.Identity?.ToString() ?? "",
                 Destination = dest.ToString(), Amount = txFee, TargetTick = tick,
                 InputType = payload.InputType, PayloadHex = Convert.ToHexString(payload.GetPayloadBytes()),
-                Description = $"Transfer {_actionAssetName}: {_actionShares:N0} shares" });
+                Description = $"Transfer {_actionAssetName}: {_actionShares:N0} shares",
+                RawData = Convert.ToHexString(tx.GetRawBytes()) });
         }
         catch (Exception ex) { _actionError = ex.Message; }
         finally { _actionSending = false; }
@@ -789,7 +799,8 @@ else if ((_myAskOrders != null && _myAskOrders.Count > 0) || (_myBidOrders != nu
             TxTracker.Track(new TrackedTransaction { Hash = result.TransactionId, Source = Seed.Identity?.ToString() ?? "",
                 Destination = dest.ToString(), Amount = 0, TargetTick = tick,
                 InputType = payload.InputType, PayloadHex = Convert.ToHexString(payload.GetPayloadBytes()),
-                Description = $"Change Rights {_actionAssetName}: {_actionShares:N0} shares → contract {_actionContractIdx} (via {contractName})" });
+                Description = $"Change Rights {_actionAssetName}: {_actionShares:N0} shares → contract {_actionContractIdx} (via {contractName})",
+                RawData = Convert.ToHexString(tx.GetRawBytes()) });
         }
         catch (Exception ex) { _actionError = ex.Message; }
         finally { _actionSending = false; }
@@ -821,7 +832,8 @@ else if ((_myAskOrders != null && _myAskOrders.Count > 0) || (_myBidOrders != nu
             TxTracker.Track(new TrackedTransaction { Hash = result.TransactionId, Source = Seed.Identity?.ToString() ?? "",
                 Destination = dest.ToString(), Amount = 0, TargetTick = tick,
                 InputType = payload.InputType, PayloadHex = Convert.ToHexString(payload.GetPayloadBytes()),
-                Description = $"QX Ask {_actionAssetName}: {_actionShares:N0} @ {_actionPrice:N0} QU" });
+                Description = $"QX Ask {_actionAssetName}: {_actionShares:N0} @ {_actionPrice:N0} QU",
+                RawData = Convert.ToHexString(tx.GetRawBytes()) });
         }
         catch (Exception ex) { _actionError = ex.Message; }
         finally { _actionSending = false; }
@@ -854,7 +866,8 @@ else if ((_myAskOrders != null && _myAskOrders.Count > 0) || (_myBidOrders != nu
             TxTracker.Track(new TrackedTransaction { Hash = result.TransactionId, Source = Seed.Identity?.ToString() ?? "",
                 Destination = dest.ToString(), Amount = amount, TargetTick = tick,
                 InputType = payload.InputType, PayloadHex = Convert.ToHexString(payload.GetPayloadBytes()),
-                Description = $"QX Bid {_actionAssetName}: {_actionShares:N0} @ {_actionPrice:N0} QU" });
+                Description = $"QX Bid {_actionAssetName}: {_actionShares:N0} @ {_actionPrice:N0} QU",
+                RawData = Convert.ToHexString(tx.GetRawBytes()) });
         }
         catch (Exception ex) { _actionError = ex.Message; }
         finally { _actionSending = false; }

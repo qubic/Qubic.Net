@@ -3,6 +3,8 @@
 @inject QubicBackendService Backend
 @inject LabelService Labels
 @inject QubicStaticService StaticData
+@inject Qubic.Services.Storage.WalletStorageService WalletStorage
+@inject SeedSessionService Seed
 @inject IJSRuntime JS
 
 <h4>Settings</h4>
@@ -27,6 +29,11 @@
     <li class="nav-item">
         <a class="nav-link @(_activeTab == "labels" ? "active" : "")" href="" @onclick="@(() => SetTab("labels"))" @onclick:preventDefault>
             <i class="bi bi-tags me-1"></i>Labels
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(_activeTab == "data" ? "active" : "")" href="" @onclick="@(() => SetTab("data"))" @onclick:preventDefault>
+            <i class="bi bi-database me-1"></i>Data
         </a>
     </li>
 </ul>
@@ -183,6 +190,88 @@ else if (_activeTab == "labels")
         }
     </div></div>
 }
+else if (_activeTab == "data")
+{
+    <div class="row"><div class="col-md-8">
+        <div class="alert alert-warning py-2 mb-3">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Your database is <strong>encrypted with your seed</strong>. Without the seed, the database file is useless.
+            Always keep a secure backup of your seed alongside any database export.
+        </div>
+
+        @if (!WalletStorage.IsOpen)
+        {
+            <div class="text-muted">Enter your seed to access database import/export.</div>
+        }
+        else
+        {
+            <div class="card mb-3">
+                <div class="card-header">Export Database</div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">
+                        Download a backup of your wallet database. This includes all synced transactions,
+                        log events, and tracked transactions.
+                    </p>
+                    <button class="btn btn-primary btn-sm" @onclick="ExportDatabase" disabled="@_exporting">
+                        @if (_exporting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1"></span>
+                        }
+                        <i class="bi bi-download me-1"></i>Export Database
+                    </button>
+                    @if (_exportError != null)
+                    {
+                        <div class="text-danger small mt-2">@_exportError</div>
+                    }
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header">Import Database</div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">
+                        Restore a previously exported database. This will <strong>replace</strong> your current database
+                        with the imported file. The imported file must have been created with the same seed.
+                    </p>
+                    <div class="mb-2">
+                        <InputFile OnChange="OnImportFileSelected" accept=".walletdb" class="form-control form-control-sm" />
+                    </div>
+                    @if (_importFile != null)
+                    {
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="small text-muted">@_importFile.Name (@FormatSize(_importFile.Size))</span>
+                            <button class="btn btn-outline-danger btn-sm" @onclick="ImportDatabase"
+                                    disabled="@_importing">
+                                @if (_importing)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                }
+                                <i class="bi bi-upload me-1"></i>Replace Current Database
+                            </button>
+                        </div>
+                    }
+                    @if (_importSuccess)
+                    {
+                        <div class="text-success small mt-2"><i class="bi bi-check-circle me-1"></i>Database imported successfully.</div>
+                    }
+                    @if (_importError != null)
+                    {
+                        <div class="text-danger small mt-2">@_importError</div>
+                    }
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">Storage Info</div>
+                <div class="card-body small">
+                    <div class="mb-1"><strong>Database path:</strong> <code>@WalletStorage.Database.DatabasePath</code></div>
+                    <div class="mb-1"><strong>Transactions:</strong> @WalletStorage.TransactionCount</div>
+                    <div><strong>Log events:</strong> @WalletStorage.LogEventCount</div>
+                </div>
+            </div>
+        }
+    </div></div>
+}
 
 @code {
     private string _theme = "light";
@@ -244,5 +333,81 @@ else if (_activeTab == "labels")
     {
         await StaticData.LoadAsync();
         StateHasChanged();
+    }
+
+    // ── Data import/export ──
+    private bool _exporting;
+    private string? _exportError;
+    private IBrowserFile? _importFile;
+    private bool _importing;
+    private bool _importSuccess;
+    private string? _importError;
+
+    private async Task ExportDatabase()
+    {
+        _exporting = true;
+        _exportError = null;
+        StateHasChanged();
+        try
+        {
+            var data = WalletStorage.ExportDatabase();
+            var base64 = Convert.ToBase64String(data);
+            var identity = Seed.Identity?.ToString() ?? "wallet";
+            var filename = $"qubic-wallet-{identity[..8]}-{DateTime.UtcNow:yyyyMMdd}.walletdb";
+            await JS.InvokeVoidAsync("eval", $@"
+                (function() {{
+                    var byteChars = atob('{base64}');
+                    var bytes = new Uint8Array(byteChars.length);
+                    for (var i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+                    var blob = new Blob([bytes], {{ type: 'application/octet-stream' }});
+                    var a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = '{filename}';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(a.href);
+                }})();
+            ");
+        }
+        catch (Exception ex) { _exportError = ex.Message; }
+        finally { _exporting = false; }
+    }
+
+    private void OnImportFileSelected(InputFileChangeEventArgs e)
+    {
+        _importFile = e.File;
+        _importSuccess = false;
+        _importError = null;
+    }
+
+    private async Task ImportDatabase()
+    {
+        if (_importFile == null) return;
+        _importing = true;
+        _importSuccess = false;
+        _importError = null;
+        StateHasChanged();
+        try
+        {
+            const long maxSize = 100 * 1024 * 1024; // 100 MB
+            using var stream = _importFile.OpenReadStream(maxSize);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            var data = ms.ToArray();
+
+            WalletStorage.ImportDatabase(data);
+            _importFile = null;
+            _importSuccess = true;
+        }
+        catch (Exception ex) { _importError = ex.Message; }
+        finally { _importing = false; }
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F1} MB";
     }
 }

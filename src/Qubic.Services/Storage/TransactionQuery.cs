@@ -14,6 +14,8 @@ public sealed class TransactionQuery
     public uint? MinTick { get; set; }
     public uint? MaxTick { get; set; }
     public uint? InputType { get; set; }
+    /// <summary>Filter by destination identity (exact match).</summary>
+    public string? Destination { get; set; }
     public string? SearchHash { get; set; }
     public TransactionSortOrder SortOrder { get; set; } = TransactionSortOrder.TickDesc;
     public int Offset { get; set; }

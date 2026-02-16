@@ -9,13 +9,15 @@ namespace Qubic.Services.Storage;
 /// </summary>
 public sealed class WalletDatabase : IDisposable
 {
-    private const int SchemaVersion = 2;
+    private const int SchemaVersion = 3;
 
     private SqliteConnection? _connection;
+    private string? _passphrase;
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private bool _disposed;
 
     public bool IsOpen => _connection?.State == System.Data.ConnectionState.Open;
+    public string? DatabasePath { get; private set; }
 
     /// <summary>
     /// Opens the database at the specified path with the given passphrase.
@@ -39,6 +41,8 @@ public sealed class WalletDatabase : IDisposable
 
         _connection = new SqliteConnection(csb.ToString());
         _connection.Open();
+        DatabasePath = dbPath;
+        _passphrase = passphrase;
 
         Execute("PRAGMA journal_mode=WAL;");
         Execute("PRAGMA foreign_keys=ON;");
@@ -53,7 +57,35 @@ public sealed class WalletDatabase : IDisposable
             _connection.Close();
             _connection.Dispose();
             _connection = null;
+            DatabasePath = null;
+            _passphrase = null;
         }
+    }
+
+    /// <summary>Flushes the WAL to the main database file.</summary>
+    public void Checkpoint()
+    {
+        if (_connection == null) return;
+        Execute("PRAGMA wal_checkpoint(TRUNCATE);");
+    }
+
+    /// <summary>
+    /// Replaces the database file with imported data and re-opens it.
+    /// </summary>
+    public void ReplaceAndReopen(byte[] data)
+    {
+        if (DatabasePath == null || _passphrase == null)
+            throw new InvalidOperationException("No database is open.");
+
+        var path = DatabasePath;
+        var pass = _passphrase;
+        Close();
+
+        File.Delete(path + "-wal");
+        File.Delete(path + "-shm");
+        File.WriteAllBytes(path, data);
+
+        Open(path, pass);
     }
 
     // ── Schema ──
@@ -132,7 +164,8 @@ public sealed class WalletDatabase : IDisposable
                 input_type      INTEGER NOT NULL DEFAULT 0,
                 payload_hex     TEXT,
                 resend_count    INTEGER NOT NULL DEFAULT 0,
-                previous_hash   TEXT
+                previous_hash   TEXT,
+                raw_data        TEXT
             );
 
             CREATE TABLE IF NOT EXISTS log_events (
@@ -195,6 +228,11 @@ public sealed class WalletDatabase : IDisposable
                 CREATE INDEX IF NOT EXISTS idx_log_type ON log_events(log_type);
                 CREATE INDEX IF NOT EXISTS idx_log_epoch ON log_events(epoch);
                 """);
+        }
+
+        if (fromVersion < 3)
+        {
+            Execute("ALTER TABLE tracked_transactions ADD COLUMN raw_data TEXT");
         }
     }
 
@@ -320,6 +358,7 @@ public sealed class WalletDatabase : IDisposable
         if (query.MinTick.HasValue) { sb.Append(" AND tick>=@mint"); parms.Add(("@mint", (long)query.MinTick.Value)); }
         if (query.MaxTick.HasValue) { sb.Append(" AND tick<=@maxt"); parms.Add(("@maxt", (long)query.MaxTick.Value)); }
         if (query.InputType.HasValue) { sb.Append(" AND input_type=@it"); parms.Add(("@it", (long)query.InputType.Value)); }
+        if (!string.IsNullOrEmpty(query.Destination)) { sb.Append(" AND destination=@dest"); parms.Add(("@dest", query.Destination)); }
         if (!string.IsNullOrEmpty(query.SearchHash)) { sb.Append(" AND hash LIKE @sh"); parms.Add(("@sh", "%" + query.SearchHash + "%")); }
 
         sb.Append(query.SortOrder == TransactionSortOrder.TickAsc ? " ORDER BY tick ASC" : " ORDER BY tick DESC");
@@ -352,8 +391,8 @@ public sealed class WalletDatabase : IDisposable
             Execute("""
                 INSERT OR REPLACE INTO tracked_transactions
                     (hash, source, destination, amount, target_tick, description, status, created_utc,
-                     resolved_utc, money_flew, input_type, payload_hex, resend_count, previous_hash)
-                VALUES (@hash, @src, @dst, @amt, @tick, @desc, @st, @cut, @rut, @mf, @it, @ph, @rc, @prev)
+                     resolved_utc, money_flew, input_type, payload_hex, resend_count, previous_hash, raw_data)
+                VALUES (@hash, @src, @dst, @amt, @tick, @desc, @st, @cut, @rut, @mf, @it, @ph, @rc, @prev, @rd)
                 """,
                 ("@hash", tx.Hash),
                 ("@src", tx.Source),
@@ -368,7 +407,8 @@ public sealed class WalletDatabase : IDisposable
                 ("@it", (long)tx.InputType),
                 ("@ph", (object?)tx.PayloadHex ?? DBNull.Value),
                 ("@rc", (long)tx.ResendCount),
-                ("@prev", (object?)tx.PreviousHash ?? DBNull.Value)
+                ("@prev", (object?)tx.PreviousHash ?? DBNull.Value),
+                ("@rd", (object?)tx.RawData ?? DBNull.Value)
             );
         }
         finally { _writeLock.Release(); }
@@ -396,7 +436,8 @@ public sealed class WalletDatabase : IDisposable
                 InputType = (ushort)reader.GetInt64(reader.GetOrdinal("input_type")),
                 PayloadHex = reader.IsDBNull(reader.GetOrdinal("payload_hex")) ? null : reader.GetString(reader.GetOrdinal("payload_hex")),
                 ResendCount = (int)reader.GetInt64(reader.GetOrdinal("resend_count")),
-                PreviousHash = reader.IsDBNull(reader.GetOrdinal("previous_hash")) ? null : reader.GetString(reader.GetOrdinal("previous_hash"))
+                PreviousHash = reader.IsDBNull(reader.GetOrdinal("previous_hash")) ? null : reader.GetString(reader.GetOrdinal("previous_hash")),
+                RawData = reader.IsDBNull(reader.GetOrdinal("raw_data")) ? null : reader.GetString(reader.GetOrdinal("raw_data"))
             });
         }
         return results;
@@ -493,6 +534,7 @@ public sealed class WalletDatabase : IDisposable
         var parms = new List<(string, object)>();
 
         if (query.LogType.HasValue) { sb.Append(" AND log_type=@lt"); parms.Add(("@lt", (long)query.LogType.Value)); }
+        if (query.ContractIndex.HasValue) { sb.Append(" AND json_extract(body, '$._contractIndex')=@ci"); parms.Add(("@ci", (long)query.ContractIndex.Value)); }
         if (query.MinTick.HasValue) { sb.Append(" AND tick>=@mint"); parms.Add(("@mint", (long)query.MinTick.Value)); }
         if (query.MaxTick.HasValue) { sb.Append(" AND tick<=@maxt"); parms.Add(("@maxt", (long)query.MaxTick.Value)); }
         if (query.Epoch.HasValue) { sb.Append(" AND epoch=@ep"); parms.Add(("@ep", (long)query.Epoch.Value)); }

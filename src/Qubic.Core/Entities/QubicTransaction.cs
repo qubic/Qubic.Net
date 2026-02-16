@@ -56,6 +56,42 @@ public sealed class QubicTransaction
     public bool IsSigned => Signature is not null;
 
     /// <summary>
+    /// Returns the raw transaction bytes (src + dst + amount + tick + inputType + inputSize + payload + signature).
+    /// Transaction must be signed.
+    /// </summary>
+    public byte[] GetRawBytes()
+    {
+        if (!IsSigned)
+            throw new InvalidOperationException("Transaction must be signed to get raw bytes.");
+
+        var payloadSize = Payload?.Length ?? 0;
+        var totalSize = 32 + 32 + 8 + 4 + 2 + 2 + payloadSize + 64;
+        var bytes = new byte[totalSize];
+        var offset = 0;
+
+        Array.Copy(SourceIdentity.PublicKey, 0, bytes, offset, 32);
+        offset += 32;
+        Array.Copy(DestinationIdentity.PublicKey, 0, bytes, offset, 32);
+        offset += 32;
+        System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(offset), Amount);
+        offset += 8;
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset), Tick);
+        offset += 4;
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(offset), InputType);
+        offset += 2;
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(offset), InputSize);
+        offset += 2;
+        if (Payload is not null && Payload.Length > 0)
+        {
+            Array.Copy(Payload, 0, bytes, offset, Payload.Length);
+            offset += Payload.Length;
+        }
+        Array.Copy(Signature!, 0, bytes, offset, 64);
+
+        return bytes;
+    }
+
+    /// <summary>
     /// Sets the signature for this transaction.
     /// </summary>
     internal void SetSignature(byte[] signature, string hash)

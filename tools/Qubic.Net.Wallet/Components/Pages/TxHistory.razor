@@ -227,6 +227,13 @@
                                             {
                                                 <tr><td class="text-muted">Resolved</td><td>@tx.ResolvedUtc.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")</td></tr>
                                             }
+                                            @if (!string.IsNullOrEmpty(tx.RawData))
+                                            {
+                                                <tr>
+                                                    <td class="text-muted">Raw Data</td>
+                                                    <td><textarea class="form-control form-control-sm mono" rows="3" readonly style="font-size:0.75em">@tx.RawData</textarea></td>
+                                                </tr>
+                                            }
                                         </table>
                                         @if (Seed.HasSeed)
                                         {
@@ -337,6 +344,10 @@ else
                                                 <tr><td class="text-muted">Timestamp</td><td>@DateTimeOffset.FromUnixTimeMilliseconds(tx.TimestampMs.Value).UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss") UTC</td></tr>
                                             }
                                             <tr><td class="text-muted">Input Type</td><td>@tx.InputType</td></tr>
+                                            @if (tx.InputSize > 0 && !string.IsNullOrEmpty(tx.InputData))
+                                            {
+                                                <tr><td class="text-muted">Input Size</td><td>@tx.InputSize</td></tr>
+                                            }
                                             @if (tx.MoneyFlew.HasValue)
                                             {
                                                 <tr><td class="text-muted">Money Flew</td><td>@tx.MoneyFlew</td></tr>
@@ -347,6 +358,14 @@ else
                                             }
                                             <tr><td class="text-muted">Synced From</td><td>@tx.SyncedFrom</td></tr>
                                             <tr><td class="text-muted">Synced At</td><td>@tx.SyncedAtUtc</td></tr>
+                                            @{ var rawHex = ReconstructRawHex(tx); }
+                                            @if (rawHex != null)
+                                            {
+                                                <tr>
+                                                    <td class="text-muted">Raw Data</td>
+                                                    <td><textarea class="form-control form-control-sm mono" rows="3" readonly style="font-size:0.75em">@rawHex</textarea></td>
+                                                </tr>
+                                            }
                                         </table>
                                     </div>
                                 </td>
@@ -559,6 +578,31 @@ else
         if (!timestampMs.HasValue) return "—";
         var dt = DateTimeOffset.FromUnixTimeMilliseconds(timestampMs.Value).UtcDateTime;
         return dt.ToString("yyyy-MM-dd HH:mm");
+    }
+
+    private static string? ReconstructRawHex(Qubic.Services.Storage.StoredTransaction tx)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(tx.Signature) || tx.Signature.Length != 128) return null;
+            var srcId = Qubic.Core.Entities.QubicIdentity.FromIdentity(tx.Source);
+            var dstId = Qubic.Core.Entities.QubicIdentity.FromIdentity(tx.Destination);
+            var inputData = !string.IsNullOrEmpty(tx.InputData) ? Convert.FromHexString(tx.InputData) : [];
+            var sig = Convert.FromHexString(tx.Signature);
+            var totalSize = 32 + 32 + 8 + 4 + 2 + 2 + inputData.Length + 64;
+            var bytes = new byte[totalSize];
+            var offset = 0;
+            Array.Copy(srcId.PublicKey, 0, bytes, offset, 32); offset += 32;
+            Array.Copy(dstId.PublicKey, 0, bytes, offset, 32); offset += 32;
+            System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(offset), long.Parse(tx.Amount)); offset += 8;
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(offset), tx.Tick); offset += 4;
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(offset), (ushort)tx.InputType); offset += 2;
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(offset), (ushort)tx.InputSize); offset += 2;
+            if (inputData.Length > 0) { Array.Copy(inputData, 0, bytes, offset, inputData.Length); offset += inputData.Length; }
+            Array.Copy(sig, 0, bytes, offset, 64);
+            return Convert.ToHexString(bytes);
+        }
+        catch { return null; }
     }
 
     public void Dispose()

@@ -404,7 +404,8 @@ else
             TxTracker.Track(new TrackedTransaction { Hash = result.TransactionId, Source = Seed.Identity?.ToString() ?? "",
                 Destination = dest.ToString(), Amount = 0, TargetTick = tick,
                 InputType = payload.InputType, PayloadHex = Convert.ToHexString(payload.GetPayloadBytes()),
-                Description = $"Cancel Ask {name}: {order.NumberOfShares:N0} @ {order.Price:N0} QU" });
+                Description = $"Cancel Ask {name}: {order.NumberOfShares:N0} @ {order.Price:N0} QU",
+                RawData = Convert.ToHexString(tx.GetRawBytes()) });
             _pendingCancels[key] = result.TransactionId;
         }
         catch { }
@@ -427,7 +428,8 @@ else
             TxTracker.Track(new TrackedTransaction { Hash = result.TransactionId, Source = Seed.Identity?.ToString() ?? "",
                 Destination = dest.ToString(), Amount = 0, TargetTick = tick,
                 InputType = payload.InputType, PayloadHex = Convert.ToHexString(payload.GetPayloadBytes()),
-                Description = $"Cancel Bid {name}: {order.NumberOfShares:N0} @ {order.Price:N0} QU" });
+                Description = $"Cancel Bid {name}: {order.NumberOfShares:N0} @ {order.Price:N0} QU",
+                RawData = Convert.ToHexString(tx.GetRawBytes()) });
             _pendingCancels[key] = result.TransactionId;
         }
         catch { }
@@ -621,7 +623,8 @@ else
             TargetTick = tick,
             InputType = inputType,
             PayloadHex = Convert.ToHexString(payload.GetPayloadBytes()),
-            Description = description
+            Description = description,
+            RawData = Convert.ToHexString(tx.GetRawBytes())
         });
     }
 

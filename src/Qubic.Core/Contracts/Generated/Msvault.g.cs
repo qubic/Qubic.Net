@@ -107,15 +107,16 @@ public readonly struct GetVaultsOutput : ISmartContractOutput<GetVaultsOutput>
 
     public static GetVaultsOutput FromBytes(ReadOnlySpan<byte> data)
     {
-        var vaultIds = new ulong[0];
-        for (int i = 0; i < 0; i++)
+        // Layout: uint64 numberOfVaults(8) + Array<uint64,8> vaultIds(64) + Array<id,8> vaultNames(256) = 328 bytes
+        var vaultIds = new ulong[8];
+        for (int i = 0; i < 8; i++)
         {
             vaultIds[i] = BinaryPrimitives.ReadUInt64LittleEndian(data[(8 + i * 8)..]);
         }
-        var vaultNames = new byte[0][];
-        for (int i = 0; i < 0; i++)
+        var vaultNames = new byte[8][];
+        for (int i = 0; i < 8; i++)
         {
-            vaultNames[i] = data[(8 + i * 32)..].Slice(0, 32).ToArray();
+            vaultNames[i] = data[(72 + i * 32)..].Slice(0, 32).ToArray();
         }
         return new GetVaultsOutput
         {
@@ -154,15 +155,16 @@ public readonly struct GetReleaseStatusOutput : ISmartContractOutput<GetReleaseS
 
     public static GetReleaseStatusOutput FromBytes(ReadOnlySpan<byte> data)
     {
-        var amounts = new ulong[0];
-        for (int i = 0; i < 0; i++)
+        // Layout: uint64 status(8) + Array<uint64,16> amounts(128) + Array<id,16> destinations(512) = 648 bytes
+        var amounts = new ulong[16];
+        for (int i = 0; i < 16; i++)
         {
             amounts[i] = BinaryPrimitives.ReadUInt64LittleEndian(data[(8 + i * 8)..]);
         }
-        var destinations = new byte[0][];
-        for (int i = 0; i < 0; i++)
+        var destinations = new byte[16][];
+        for (int i = 0; i < 16; i++)
         {
-            destinations[i] = data[(8 + i * 32)..].Slice(0, 32).ToArray();
+            destinations[i] = data[(136 + i * 32)..].Slice(0, 32).ToArray();
         }
         return new GetReleaseStatusOutput
         {
@@ -245,33 +247,31 @@ public readonly struct GetVaultNameOutput : ISmartContractOutput<GetVaultNameOut
 
 // ═══ Function: getRevenueInfo (inputType=9) ═══
 
-/// <summary>Input for query.</summary>
+/// <summary>Input for query (empty).</summary>
 public readonly struct GetRevenueInfoInput : ISmartContractInput
 {
-    public const int Size = 32;
+    public int SerializedSize => 0;
+    public byte[] ToBytes() => [];
+}
 
-    public int SerializedSize => Size;
-
+/// <summary>Output.</summary>
+public readonly struct GetRevenueInfoOutput : ISmartContractOutput<GetRevenueInfoOutput>
+{
     public ulong NumberOfActiveVaults { get; init; }
     public ulong TotalRevenue { get; init; }
     public ulong TotalDistributedToShareholders { get; init; }
     public ulong BurnedAmount { get; init; }
 
-    public byte[] ToBytes()
+    public static GetRevenueInfoOutput FromBytes(ReadOnlySpan<byte> data)
     {
-        var bytes = new byte[Size];
-        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(0), NumberOfActiveVaults);
-        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(8), TotalRevenue);
-        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(16), TotalDistributedToShareholders);
-        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(24), BurnedAmount);
-        return bytes;
+        return new GetRevenueInfoOutput
+        {
+            NumberOfActiveVaults = BinaryPrimitives.ReadUInt64LittleEndian(data[0..]),
+            TotalRevenue = BinaryPrimitives.ReadUInt64LittleEndian(data[8..]),
+            TotalDistributedToShareholders = BinaryPrimitives.ReadUInt64LittleEndian(data[16..]),
+            BurnedAmount = BinaryPrimitives.ReadUInt64LittleEndian(data[24..])
+        };
     }
-}
-
-/// <summary>Output (empty).</summary>
-public readonly struct GetRevenueInfoOutput : ISmartContractOutput<GetRevenueInfoOutput>
-{
-    public static GetRevenueInfoOutput FromBytes(ReadOnlySpan<byte> data) => new();
 }
 
 // ═══ Function: getFees (inputType=10) ═══
@@ -336,8 +336,9 @@ public readonly struct GetVaultOwnersOutput : ISmartContractOutput<GetVaultOwner
 
     public static GetVaultOwnersOutput FromBytes(ReadOnlySpan<byte> data)
     {
-        var owners = new byte[0][];
-        for (int i = 0; i < 0; i++)
+        // Layout: uint64 status(8) + uint64 numOwners(8) + Array<id,16> owners(512) + uint64 reqApprovals(8) = 536 bytes
+        var owners = new byte[16][];
+        for (int i = 0; i < 16; i++)
         {
             owners[i] = data[(16 + i * 32)..].Slice(0, 32).ToArray();
         }
@@ -346,7 +347,7 @@ public readonly struct GetVaultOwnersOutput : ISmartContractOutput<GetVaultOwner
             Status = BinaryPrimitives.ReadUInt64LittleEndian(data[0..]),
             NumberOfOwners = BinaryPrimitives.ReadUInt64LittleEndian(data[8..]),
             Owners = owners,
-            RequiredApprovals = BinaryPrimitives.ReadUInt64LittleEndian(data[16..])
+            RequiredApprovals = BinaryPrimitives.ReadUInt64LittleEndian(data[528..])
         };
     }
 }
@@ -429,8 +430,8 @@ public readonly struct GetFeeVotesOwnerOutput : ISmartContractOutput<GetFeeVotes
 
     public static GetFeeVotesOwnerOutput FromBytes(ReadOnlySpan<byte> data)
     {
-        var feeVotesOwner = new byte[0][];
-        for (int i = 0; i < 0; i++)
+        var feeVotesOwner = new byte[64][];
+        for (int i = 0; i < 64; i++)
         {
             feeVotesOwner[i] = data[(16 + i * 32)..].Slice(0, 32).ToArray();
         }
@@ -461,8 +462,8 @@ public readonly struct GetFeeVotesScoreOutput : ISmartContractOutput<GetFeeVotes
 
     public static GetFeeVotesScoreOutput FromBytes(ReadOnlySpan<byte> data)
     {
-        var feeVotesScore = new ulong[0];
-        for (int i = 0; i < 0; i++)
+        var feeVotesScore = new ulong[64];
+        for (int i = 0; i < 64; i++)
         {
             feeVotesScore[i] = BinaryPrimitives.ReadUInt64LittleEndian(data[(16 + i * 8)..]);
         }
@@ -520,8 +521,8 @@ public readonly struct GetUniqueFeeVotesRankingOutput : ISmartContractOutput<Get
 
     public static GetUniqueFeeVotesRankingOutput FromBytes(ReadOnlySpan<byte> data)
     {
-        var uniqueFeeVotesRanking = new ulong[0];
-        for (int i = 0; i < 0; i++)
+        var uniqueFeeVotesRanking = new ulong[64];
+        for (int i = 0; i < 64; i++)
         {
             uniqueFeeVotesRanking[i] = BinaryPrimitives.ReadUInt64LittleEndian(data[(16 + i * 8)..]);
         }
@@ -553,20 +554,43 @@ public readonly struct GetVaultAssetBalancesInput : ISmartContractInput
     }
 }
 
+/// <summary>An asset balance entry: Asset(40 bytes) + uint64 balance(8 bytes) = 48 bytes.</summary>
+public readonly struct AssetBalanceEntry
+{
+    public QubicAsset Asset { get; init; }
+    public ulong Balance { get; init; }
+
+    public static AssetBalanceEntry ReadFrom(ReadOnlySpan<byte> data)
+    {
+        return new AssetBalanceEntry
+        {
+            Asset = QubicAsset.ReadFrom(data),
+            Balance = BinaryPrimitives.ReadUInt64LittleEndian(data[40..])
+        };
+    }
+}
+
 /// <summary>Output.</summary>
 public readonly struct GetVaultAssetBalancesOutput : ISmartContractOutput<GetVaultAssetBalancesOutput>
 {
     public ulong Status { get; init; }
     public ulong NumberOfAssetTypes { get; init; }
-    public byte[] AssetBalances { get; init; }
+    /// <summary>Fixed array of 8 asset balance entries (MSVAULT_MAX_ASSET_TYPES).</summary>
+    public AssetBalanceEntry[] AssetBalances { get; init; }
 
     public static GetVaultAssetBalancesOutput FromBytes(ReadOnlySpan<byte> data)
     {
+        // Layout: uint64 status(8) + uint64 numTypes(8) + Array<AssetBalance,8>(384) = 400 bytes
+        var assetBalances = new AssetBalanceEntry[8];
+        for (int i = 0; i < 8; i++)
+        {
+            assetBalances[i] = AssetBalanceEntry.ReadFrom(data[(16 + i * 48)..]);
+        }
         return new GetVaultAssetBalancesOutput
         {
             Status = BinaryPrimitives.ReadUInt64LittleEndian(data[0..]),
             NumberOfAssetTypes = BinaryPrimitives.ReadUInt64LittleEndian(data[8..]),
-            AssetBalances = [] /* unknown struct array AssetBalance */
+            AssetBalances = assetBalances
         };
     }
 }
@@ -600,20 +624,21 @@ public readonly struct GetAssetReleaseStatusOutput : ISmartContractOutput<GetAss
 
     public static GetAssetReleaseStatusOutput FromBytes(ReadOnlySpan<byte> data)
     {
-        var assets = new QubicAsset[0];
-        for (int i = 0; i < 0; i++)
+        // Layout: uint64 status(8) + Array<Asset,16>(640) + Array<uint64,16>(128) + Array<id,16>(512) = 1288 bytes
+        var assets = new QubicAsset[16];
+        for (int i = 0; i < 16; i++)
         {
             assets[i] = QubicAsset.ReadFrom(data[(8 + i * 40)..]);
         }
-        var amounts = new ulong[0];
-        for (int i = 0; i < 0; i++)
+        var amounts = new ulong[16];
+        for (int i = 0; i < 16; i++)
         {
-            amounts[i] = BinaryPrimitives.ReadUInt64LittleEndian(data[(8 + i * 8)..]);
+            amounts[i] = BinaryPrimitives.ReadUInt64LittleEndian(data[(648 + i * 8)..]);
         }
-        var destinations = new byte[0][];
-        for (int i = 0; i < 0; i++)
+        var destinations = new byte[16][];
+        for (int i = 0; i < 16; i++)
         {
-            destinations[i] = data[(8 + i * 32)..].Slice(0, 32).ToArray();
+            destinations[i] = data[(776 + i * 32)..].Slice(0, 32).ToArray();
         }
         return new GetAssetReleaseStatusOutput
         {
@@ -665,13 +690,15 @@ public readonly struct GetManagedAssetBalanceOutput : ISmartContractOutput<GetMa
 /// <summary>Input payload for procedure.</summary>
 public sealed class RegisterVaultPayload : ITransactionPayload, ISmartContractInput
 {
-    public const int Size = 40;
+    /// <summary>32 (vaultName) + 16*32 (owners) + 8 (requiredApprovals) = 552 bytes.</summary>
+    public const int Size = 552;
 
     public ushort InputType => 1;
     public ushort InputSize => Size;
     public int SerializedSize => Size;
 
     public required byte[] VaultName { get; init; }
+    /// <summary>Up to 16 owner public keys (32 bytes each). Minimum 2 unique owners required.</summary>
     public required byte[][] Owners { get; init; }
     public ulong RequiredApprovals { get; init; }
 
@@ -681,11 +708,11 @@ public sealed class RegisterVaultPayload : ITransactionPayload, ISmartContractIn
     {
         var bytes = new byte[Size];
         VaultName.AsSpan(0, 32).CopyTo(bytes.AsSpan(0));
-        for (int i = 0; i < 0 && Owners != null && i < Owners.Length; i++)
+        for (int i = 0; i < 16 && Owners != null && i < Owners.Length; i++)
         {
             Owners[i].AsSpan(0, 32).CopyTo(bytes.AsSpan(32 + i * 32));
         }
-        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(32), RequiredApprovals);
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(544), RequiredApprovals);
         return bytes;
     }
 }

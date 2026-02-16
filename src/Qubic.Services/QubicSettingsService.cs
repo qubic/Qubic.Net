@@ -227,7 +227,7 @@ public sealed class QubicSettingsService
 
     private sealed class SettingsData
     {
-        public int TickOffset { get; set; } = 5;
+        public int TickOffset { get; set; } = 7;
         public bool AutoResend { get; set; }
         public int AutoResendMaxRetries { get; set; } = 3;
         public string DefaultBackend { get; set; } = "Rpc";

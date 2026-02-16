@@ -8,6 +8,9 @@
 @inject QubicSettingsService Settings
 @inject QubicStaticService StaticData
 @inject AssetRegistryService AssetRegistry
+@inject NavigationManager Nav
+@inject LabelService Labels
+@inject IJSRuntime JS
 
 <div class="d-flex flex-column vh-100">
     <nav class="qb-navbar">
@@ -20,6 +23,10 @@
             {
                 <span class="badge-qb-gold">Seed active</span>
                 <span class="badge-qb-cyan mono">@Seed.Identity?.ToString()[..12]...</span>
+                <button class="btn btn-sm btn-qb-ghost p-0 ms-1" @onclick="CopyIdentity"
+                        title="Copy full identity">
+                    <i class="bi @(_identityCopied ? "bi-check-lg text-success" : "bi-clipboard")"></i>
+                </button>
                 <button class="btn btn-sm btn-qb-ghost" @onclick="ClearSeed">Clear</button>
             }
             else
@@ -86,6 +93,7 @@
     private string? _seedInput;
     private bool _reconnecting;
     private bool _disposed;
+    private bool _identityCopied;
 
     private string CurrentHost
     {
@@ -99,7 +107,7 @@
         await TickMonitor.StartAsync();
 
         if (Settings.RemoteLabelsEnabled)
-            _ = StaticData.LoadAsync();
+            _ = LoadLabelsWithRetry();
 
         // Auto-refresh asset registry if stale (once per day)
         _ = AssetRegistry.RefreshFromNetworkAsync(Backend);
@@ -126,12 +134,24 @@
         }
     }
 
+    private async Task CopyIdentity()
+    {
+        var id = Seed.Identity?.ToString();
+        if (id == null) return;
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", id);
+        _identityCopied = true;
+        StateHasChanged();
+        await Task.Delay(2000);
+        _identityCopied = false;
+    }
+
     private void ClearSeed()
     {
         Seed.ClearSeed();
         WalletStorage.ClearSeed();
         TxTracker.ClearEncryptionKey();
         _seedInput = null;
+        Nav.NavigateTo("/", forceLoad: false);
     }
 
     private async Task OnBackendChanged()
@@ -153,6 +173,17 @@
     {
         await TickMonitor.StopAsync();
         Backend.ResetClients();
+    }
+
+    private async Task LoadLabelsWithRetry()
+    {
+        await StaticData.LoadAsync();
+        if (Labels.RemoteLabelCount == 0 && StaticData.LastError == null)
+        {
+            await Task.Delay(3000);
+            if (!_disposed)
+                await StaticData.LoadAsync();
+        }
     }
 
     public void Dispose()

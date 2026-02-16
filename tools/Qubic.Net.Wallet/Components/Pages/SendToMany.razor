@@ -280,7 +280,8 @@ else
                 TargetTick = tick,
                 InputType = 1, // QUTIL SendToManyV1
                 PayloadHex = Convert.ToHexString(payload.GetPayloadBytes()),
-                Description = $"SendToMany: {payload.Transfers.Count} recipients, {payload.TotalAmount:N0} QU + {(_fee ?? 0):N0} fee"
+                Description = $"SendToMany: {payload.Transfers.Count} recipients, {payload.TotalAmount:N0} QU + {(_fee ?? 0):N0} fee",
+                RawData = Convert.ToHexString(tx.GetRawBytes())
             });
         }
         catch (Exception ex)

@@ -32,6 +32,9 @@ public sealed class TrackedTransaction
     public string? PayloadHex { get; set; }
     public int ResendCount { get; set; }
     public string? PreviousHash { get; set; }
+
+    /// <summary>Raw signed transaction bytes as hex string.</summary>
+    public string? RawData { get; set; }
 }
 
 public sealed class TransactionTrackerService : IDisposable
@@ -194,7 +197,8 @@ public sealed class TransactionTrackerService : IDisposable
             InputType = original.InputType,
             PayloadHex = original.PayloadHex,
             PreviousHash = original.Hash,
-            Description = $"[Repeat] {description}"
+            Description = $"[Repeat] {description}",
+            RawData = Convert.ToHexString(tx.GetRawBytes())
         };
 
         Track(repeat);
@@ -456,7 +460,8 @@ public sealed class TransactionTrackerService : IDisposable
                 PayloadHex = original.PayloadHex,
                 ResendCount = original.ResendCount + 1,
                 PreviousHash = original.Hash,
-                Description = $"[Resend #{original.ResendCount + 1}] {original.Description}"
+                Description = $"[Resend #{original.ResendCount + 1}] {original.Description}",
+                RawData = Convert.ToHexString(tx.GetRawBytes())
             };
 
             if (UseDb)
