@@ -5,7 +5,20 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>Qubic.Services</PackageId>
+    <Version>1.2.0</Version>
+    <Authors>Qubic.NET Contributors</Authors>
+    <Description>High-level services for Qubic applications: backend abstraction, tick monitoring, label service, wallet storage, transaction tracking, and more.</Description>
+    <PackageTags>qubic;blockchain;services</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.*" />

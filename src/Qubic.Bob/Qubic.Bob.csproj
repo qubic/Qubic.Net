@@ -8,7 +8,7 @@
 
     <!-- NuGet Package Metadata -->
     <PackageId>Qubic.Bob</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.2.0</Version>
     <Authors>Qubic.NET Contributors</Authors>
     <Description>JSON-RPC client for QubicBob API</Description>
     <PackageTags>qubic;blockchain;bob;json-rpc</PackageTags>
@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Qubic.Core" Version="1.0.0" />
+    <ProjectReference Include="..\Qubic.Core\Qubic.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>
