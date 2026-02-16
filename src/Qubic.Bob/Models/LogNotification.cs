@@ -39,7 +39,21 @@ public sealed class LogNotification
     public int BodySize { get; set; }
 
     [JsonPropertyName("timestamp")]
-    public string? Timestamp { get; set; }
+    public JsonElement? Timestamp { get; set; }
+
+    /// <summary>
+    /// Gets the timestamp as a string, handling both string and number JSON representations.
+    /// </summary>
+    public string? GetTimestamp()
+    {
+        if (!Timestamp.HasValue) return null;
+        return Timestamp.Value.ValueKind switch
+        {
+            JsonValueKind.String => Timestamp.Value.GetString(),
+            JsonValueKind.Number => Timestamp.Value.GetRawText(),
+            _ => Timestamp.Value.ToString()
+        };
+    }
 
     [JsonPropertyName("txHash")]
     public string? TxHash { get; set; }

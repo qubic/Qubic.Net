@@ -11,10 +11,10 @@ public enum SyncState { Idle, Syncing, Error }
 public enum StreamStatus { Idle, Connecting, CatchingUp, Live, Error, Done }
 
 /// <summary>
-/// Background sync orchestrator with three concurrent streams:
+/// Background sync orchestrator with concurrent streams:
 /// 1. RPC paginated transaction sync (long-term archive)
-/// 2. Bob WebSocket transfer subscription (real-time + catch-up)
-/// 3. Bob WebSocket log subscription (real-time + catch-up)
+/// 2. Bob WebSocket log subscription (real-time + catch-up, covers all event types including transfers)
+/// 3. Missing transaction fetch (fetches full tx data for tx_hashes referenced in logs)
 /// </summary>
 public sealed class WalletSyncService : IDisposable
 {
@@ -23,11 +23,9 @@ public sealed class WalletSyncService : IDisposable
 
     private CancellationTokenSource? _cts;
     private Task? _rpcTask;
-    private Task? _bobTransferTask;
     private Task? _bobLogTask;
     private Task? _missingTxTask;
     private volatile bool _rpcInitialDone;
-    private volatile bool _bobTransferInitialDone;
     private volatile bool _bobLogInitialDone;
 
     public SyncState State { get; private set; } = SyncState.Idle;
@@ -37,14 +35,12 @@ public sealed class WalletSyncService : IDisposable
     public double SyncProgress => RpcTotal > 0 ? Math.Min(100.0, TransactionsSynced * 100.0 / RpcTotal) : 0;
     public string? LastError { get; private set; }
     public int MissingTxFetched { get; private set; }
-    /// <summary>True once all three streams have completed their initial catch-up.</summary>
-    public bool InitialSyncComplete => _rpcInitialDone && _bobTransferInitialDone && _bobLogInitialDone;
+    /// <summary>True once both RPC and Bob log streams have completed their initial catch-up.</summary>
+    public bool InitialSyncComplete => _rpcInitialDone && _bobLogInitialDone;
 
     // Per-stream status for UI visibility
     public StreamStatus RpcStatus { get; private set; } = StreamStatus.Idle;
     public string? RpcStatusMessage { get; private set; }
-    public StreamStatus BobTransferStatus { get; private set; } = StreamStatus.Idle;
-    public string? BobTransferStatusMessage { get; private set; }
     public StreamStatus BobLogStatus { get; private set; } = StreamStatus.Idle;
     public string? BobLogStatusMessage { get; private set; }
 
@@ -95,18 +91,14 @@ public sealed class WalletSyncService : IDisposable
         LastError = null;
         Log($"Starting sync for {identity[..8]}... RPC={_backend.RpcUrl} Bob={_backend.BobUrl}");
         _rpcInitialDone = false;
-        _bobTransferInitialDone = false;
         _bobLogInitialDone = false;
         RpcStatus = StreamStatus.Idle;
         RpcStatusMessage = null;
-        BobTransferStatus = StreamStatus.Idle;
-        BobTransferStatusMessage = null;
         BobLogStatus = StreamStatus.Idle;
         BobLogStatusMessage = null;
 
         var ct = _cts.Token;
         _rpcTask = Task.Run(() => RpcSyncLoop(identity, ct), ct);
-        _bobTransferTask = Task.Run(() => BobTransferSyncLoop(identity, ct), ct);
         _bobLogTask = Task.Run(() => BobLogSyncLoop(identity, ct), ct);
         _missingTxTask = Task.Run(() => MissingTxSyncLoop(identity, ct), ct);
 
@@ -121,20 +113,17 @@ public sealed class WalletSyncService : IDisposable
         _cts?.Cancel();
 
         try { _rpcTask?.Wait(3000); } catch { }
-        try { _bobTransferTask?.Wait(3000); } catch { }
         try { _bobLogTask?.Wait(3000); } catch { }
         try { _missingTxTask?.Wait(3000); } catch { }
 
         _cts?.Dispose();
         _cts = null;
         _rpcTask = null;
-        _bobTransferTask = null;
         _bobLogTask = null;
         _missingTxTask = null;
 
         State = SyncState.Idle;
         RpcStatus = StreamStatus.Idle;
-        BobTransferStatus = StreamStatus.Idle;
         BobLogStatus = StreamStatus.Idle;
         RaiseChanged();
     }
@@ -254,133 +243,7 @@ public sealed class WalletSyncService : IDisposable
         catch (OperationCanceledException) { }
     }
 
-    // ── Stream 2: Bob WebSocket Transfer Subscription ──
-
-    private async Task BobTransferSyncLoop(string identity, CancellationToken ct)
-    {
-        const string watermarkKey = "bob_transfer_last_logid";
-        const string epochWatermarkKey = "bob_transfer_last_epoch";
-
-        try
-        {
-            while (!ct.IsCancellationRequested)
-            {
-                BobWebSocketClient? wsClient = null;
-                try
-                {
-                    BobTransferStatus = StreamStatus.Connecting;
-                    BobTransferStatusMessage = "Connecting to Bob WS...";
-                    Log("Bob Transfers: Connecting...");
-                    RaiseChanged();
-
-                    var wsOptions = new BobWebSocketOptions { Nodes = [_backend.BobUrl] };
-                    wsClient = new BobWebSocketClient(wsOptions);
-                    await wsClient.ConnectAsync(ct);
-                    Log("Bob Transfers: Connected");
-
-                    var wmStr = _db.GetWatermark(watermarkKey);
-                    var startLogId = long.TryParse(wmStr, out var lid) ? lid : 0L;
-                    var epochStr = _db.GetWatermark(epochWatermarkKey);
-                    var startEpoch = uint.TryParse(epochStr, out var ep) ? ep : (uint?)null;
-
-                    var options = new TransferSubscriptionOptions
-                    {
-                        Identities = [identity],
-                        StartLogId = startLogId,
-                        StartEpoch = startEpoch
-                    };
-
-                    BobTransferStatus = StreamStatus.CatchingUp;
-                    BobTransferStatusMessage = $"Catching up from logId {startLogId} epoch {startEpoch?.ToString() ?? "?"}...";
-                    Log($"Bob Transfers: Subscribing (startLogId={startLogId}, startEpoch={startEpoch?.ToString() ?? "none"})");
-                    RaiseChanged();
-
-                    var sub = await wsClient.SubscribeTransfersAsync(options, ct);
-                    Log("Bob Transfers: Subscribed, awaiting data...");
-                    var catchUpCount = 0;
-
-                    await foreach (var notification in sub.WithCancellation(ct))
-                    {
-                        // catchUpComplete is the definitive signal that catch-up is done
-                        if (notification.CatchUpComplete)
-                        {
-                            if (!_bobTransferInitialDone)
-                            {
-                                _bobTransferInitialDone = true;
-                                BobTransferStatus = StreamStatus.Live;
-                                BobTransferStatusMessage = $"Live — {catchUpCount} transfers caught up";
-                                Log($"Bob Transfers: Catch-up complete — {catchUpCount} transfers caught up");
-                                CheckInitialSyncComplete();
-                                RaiseChanged();
-                            }
-                            continue; // Not a real data notification
-                        }
-
-                        if (notification.Body == null) continue;
-
-                        var now = DateTime.UtcNow.ToString("O");
-                        var tx = new StoredTransaction
-                        {
-                            Hash = notification.TxHash ?? "",
-                            Source = notification.Body.From,
-                            Destination = notification.Body.To,
-                            Amount = notification.Body.GetAmount().ToString(),
-                            Tick = notification.Tick,
-                            SyncedFrom = "bob",
-                            SyncedAtUtc = now
-                        };
-
-                        if (!string.IsNullOrEmpty(tx.Hash))
-                        {
-                            _db.UpsertTransaction(tx);
-                            TransactionsSynced++;
-                            _db.SetWatermark(watermarkKey, notification.LogId.ToString());
-                            _db.SetWatermark(epochWatermarkKey, notification.Epoch.ToString());
-
-                            if (!_bobTransferInitialDone)
-                            {
-                                catchUpCount++;
-                                if (catchUpCount % 100 == 0)
-                                    Log($"Bob Transfers: Caught up {catchUpCount} transfers (logId {notification.LogId}, epoch {notification.Epoch})");
-                                BobTransferStatusMessage = $"Catching up... {catchUpCount} transfers (logId {notification.LogId})";
-                            }
-                            else
-                            {
-                                Log($"Bob Transfers: Live transfer tick={notification.Tick} hash={tx.Hash[..16]}...");
-                            }
-                            RaiseChanged();
-                        }
-                    }
-                }
-                catch (OperationCanceledException) { throw; }
-                catch (Exception ex)
-                {
-                    LastError = $"Bob transfer sync: {ex.Message}";
-                    BobTransferStatus = StreamStatus.Error;
-                    BobTransferStatusMessage = $"Error: {ex.Message}";
-                    Log($"Bob Transfers: Error — {ex.Message}");
-                    if (!_bobTransferInitialDone)
-                    {
-                        _bobTransferInitialDone = true;
-                        CheckInitialSyncComplete();
-                    }
-                    RaiseChanged();
-                    Log("Bob Transfers: Retrying in 10s...");
-                    await Task.Delay(TimeSpan.FromSeconds(10), ct);
-                }
-                finally
-                {
-                    if (wsClient is IAsyncDisposable ad)
-                        await ad.DisposeAsync();
-                    else
-                        wsClient?.Dispose();
-                }
-            }
-        }
-        catch (OperationCanceledException) { }
-    }
-
-    // ── Stream 3: Bob WebSocket Log Subscription ──
+    // ── Stream 2: Bob WebSocket Log Subscription ──
 
     private async Task BobLogSyncLoop(string identity, CancellationToken ct)
     {
@@ -399,13 +262,17 @@ public sealed class WalletSyncService : IDisposable
                     Log("Bob Logs: Connecting...");
                     RaiseChanged();
 
-                    var wsOptions = new BobWebSocketOptions { Nodes = [_backend.BobUrl] };
+                    var wsOptions = new BobWebSocketOptions
+                    {
+                        Nodes = [_backend.BobUrl],
+                        OnConnectionEvent = evt => Log($"Bob WS: [{evt.Type}] {evt.Message}")
+                    };
                     wsClient = new BobWebSocketClient(wsOptions);
                     await wsClient.ConnectAsync(ct);
                     Log("Bob Logs: Connected");
 
                     var wmStr = _db.GetWatermark(watermarkKey);
-                    var startLogId = long.TryParse(wmStr, out var lid) ? lid : 0L;
+                    long? startLogId = long.TryParse(wmStr, out var lid) ? lid : 0L;
                     var epochStr = _db.GetWatermark(epochWatermarkKey);
                     var startEpoch = uint.TryParse(epochStr, out var ep) ? ep : (uint?)null;
 
@@ -422,11 +289,30 @@ public sealed class WalletSyncService : IDisposable
                     RaiseChanged();
 
                     var sub = await wsClient.SubscribeLogsAsync(options, ct);
-                    Log("Bob Logs: Subscribed, awaiting data...");
+                    Log($"Bob Logs: Subscribed (subId={sub.ServerSubscriptionId ?? "null"}), awaiting data...");
                     var catchUpCount = 0;
+                    var lastDataUtc = DateTime.UtcNow;
+
+                    // Periodic heartbeat: if no data for 60s during catch-up, log a warning
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            while (!ct.IsCancellationRequested)
+                            {
+                                await Task.Delay(TimeSpan.FromSeconds(60), ct);
+                                var gap = DateTime.UtcNow - lastDataUtc;
+                                if (gap.TotalSeconds > 60)
+                                    Log($"Bob Logs: No data received for {gap.TotalSeconds:F0}s (WS state={wsClient.State}, subId={sub.ServerSubscriptionId ?? "null"})");
+                            }
+                        }
+                        catch (OperationCanceledException) { }
+                    }, ct);
 
                     await foreach (var notification in sub.WithCancellation(ct))
                     {
+                        lastDataUtc = DateTime.UtcNow;
+
                         // catchUpComplete is the definitive signal that catch-up is done
                         if (notification.CatchUpComplete)
                         {
@@ -466,7 +352,7 @@ public sealed class WalletSyncService : IDisposable
                             BodyRaw = bodyRaw,
                             LogDigest = notification.LogDigest,
                             BodySize = notification.BodySize,
-                            Timestamp = notification.Timestamp,
+                            Timestamp = notification.GetTimestamp(),
                             SyncedFrom = "bob_ws",
                             SyncedAtUtc = now
                         };
@@ -518,7 +404,7 @@ public sealed class WalletSyncService : IDisposable
         catch (OperationCanceledException) { }
     }
 
-    // ── Stream 4: Fetch Missing Transactions Referenced by Logs ──
+    // ── Stream 3: Fetch Missing Transactions Referenced by Logs ──
 
     private async Task MissingTxSyncLoop(string identity, CancellationToken ct)
     {
@@ -535,50 +421,93 @@ public sealed class WalletSyncService : IDisposable
                     if (missingHashes.Count > 0)
                     {
                         Log($"Missing TX: Found {missingHashes.Count} transactions referenced by logs but not stored");
-                        using var rpc = new QubicRpcClient(_backend.RpcUrl);
+
+                        // Split into standard hashes (60 lowercase chars) fetchable from RPC,
+                        // and non-standard hashes (e.g. SC_END_TICK_TX_*) that need Bob.
+                        var standardHashes = missingHashes.Where(IsStandardTxHash).ToList();
+                        var nonStandardHashes = missingHashes.Where(h => !IsStandardTxHash(h)).ToList();
+
                         var fetched = 0;
 
-                        foreach (var hash in missingHashes)
+                        // Fetch standard hashes via RPC (richer data: MoneyFlew, Signature, etc.)
+                        if (standardHashes.Count > 0)
                         {
-                            if (ct.IsCancellationRequested) break;
-
-                            try
+                            using var rpc = new QubicRpcClient(_backend.RpcUrl);
+                            foreach (var hash in standardHashes)
                             {
-                                var txInfo = await rpc.GetTransactionByHashAsync(hash, ct);
-                                if (txInfo != null)
+                                if (ct.IsCancellationRequested) break;
+                                try
                                 {
-                                    var now = DateTime.UtcNow.ToString("O");
-                                    var stored = new StoredTransaction
+                                    var txInfo = await rpc.GetTransactionByHashAsync(hash, ct);
+                                    if (txInfo != null)
                                     {
-                                        Hash = txInfo.Hash,
-                                        Source = txInfo.Source,
-                                        Destination = txInfo.Destination,
-                                        Amount = txInfo.Amount,
-                                        Tick = txInfo.TickNumber,
-                                        TimestampMs = ParseTimestampMs(txInfo.Timestamp),
-                                        InputType = txInfo.InputType,
-                                        InputSize = txInfo.InputSize,
-                                        InputData = string.IsNullOrEmpty(txInfo.InputData) ? null : txInfo.InputData,
-                                        Signature = string.IsNullOrEmpty(txInfo.Signature) ? null : txInfo.Signature,
-                                        MoneyFlew = txInfo.MoneyFlew,
-                                        SyncedFrom = "log_ref",
-                                        SyncedAtUtc = now
-                                    };
-                                    _db.UpsertTransaction(stored);
-                                    fetched++;
-                                    MissingTxFetched++;
+                                        var now = DateTime.UtcNow.ToString("O");
+                                        _db.UpsertTransaction(new StoredTransaction
+                                        {
+                                            Hash = txInfo.Hash,
+                                            Source = txInfo.Source,
+                                            Destination = txInfo.Destination,
+                                            Amount = txInfo.Amount,
+                                            Tick = txInfo.TickNumber,
+                                            TimestampMs = ParseTimestampMs(txInfo.Timestamp),
+                                            InputType = txInfo.InputType,
+                                            InputSize = txInfo.InputSize,
+                                            InputData = string.IsNullOrEmpty(txInfo.InputData) ? null : txInfo.InputData,
+                                            Signature = string.IsNullOrEmpty(txInfo.Signature) ? null : txInfo.Signature,
+                                            MoneyFlew = txInfo.MoneyFlew,
+                                            SyncedFrom = "log_ref",
+                                            SyncedAtUtc = now
+                                        });
+                                        fetched++;
+                                        MissingTxFetched++;
+                                    }
+                                }
+                                catch (OperationCanceledException) { throw; }
+                                catch (Exception ex)
+                                {
+                                    Log($"Missing TX: RPC failed for {hash[..Math.Min(16, hash.Length)]}... — {ex.Message}");
                                 }
                             }
-                            catch (OperationCanceledException) { throw; }
-                            catch (Exception ex)
+                        }
+
+                        // Fetch non-standard hashes via Bob (e.g. SC_END_TICK_TX_*)
+                        if (nonStandardHashes.Count > 0 && !ct.IsCancellationRequested)
+                        {
+                            using var bob = new BobClient(_backend.BobUrl);
+                            foreach (var hash in nonStandardHashes)
                             {
-                                Log($"Missing TX: Failed to fetch {hash[..16]}... — {ex.Message}");
+                                if (ct.IsCancellationRequested) break;
+                                try
+                                {
+                                    var bobTx = await bob.GetTransactionByHashAsync(hash, ct);
+                                    if (bobTx != null)
+                                    {
+                                        var now = DateTime.UtcNow.ToString("O");
+                                        _db.UpsertTransaction(new StoredTransaction
+                                        {
+                                            Hash = hash,
+                                            Source = bobTx.Source.ToString(),
+                                            Destination = bobTx.Destination.ToString(),
+                                            Amount = bobTx.Amount.ToString(),
+                                            Tick = bobTx.Tick,
+                                            SyncedFrom = "log_ref_bob",
+                                            SyncedAtUtc = now
+                                        });
+                                        fetched++;
+                                        MissingTxFetched++;
+                                    }
+                                }
+                                catch (OperationCanceledException) { throw; }
+                                catch (Exception ex)
+                                {
+                                    Log($"Missing TX: Bob failed for {hash[..Math.Min(16, hash.Length)]}... — {ex.Message}");
+                                }
                             }
                         }
 
                         if (fetched > 0)
                         {
-                            Log($"Missing TX: Fetched {fetched}/{missingHashes.Count} transactions");
+                            Log($"Missing TX: Fetched {fetched}/{missingHashes.Count} transactions ({standardHashes.Count} RPC, {nonStandardHashes.Count} Bob)");
                             RaiseChanged();
                         }
                     }
@@ -595,11 +524,18 @@ public sealed class WalletSyncService : IDisposable
         catch (OperationCanceledException) { }
     }
 
+    /// <summary>
+    /// Standard Qubic tx hashes are 60 lowercase alphabetic characters.
+    /// Non-standard hashes (e.g. SC_END_TICK_TX_44150530) must be fetched from Bob.
+    /// </summary>
+    private static bool IsStandardTxHash(string hash) =>
+        hash.Length == 60 && hash.All(c => c >= 'a' && c <= 'z');
+
     // ── Helpers ──
 
     private void CheckInitialSyncComplete()
     {
-        if (State == SyncState.Syncing && _rpcInitialDone && _bobTransferInitialDone && _bobLogInitialDone)
+        if (State == SyncState.Syncing && _rpcInitialDone && _bobLogInitialDone)
         {
             State = SyncState.Idle;
         }
@@ -608,6 +544,8 @@ public sealed class WalletSyncService : IDisposable
     private static long? ParseTimestampMs(string? timestamp)
     {
         if (string.IsNullOrEmpty(timestamp)) return null;
+        if (long.TryParse(timestamp, out var ms))
+            return ms;
         if (DateTimeOffset.TryParse(timestamp, out var dto))
             return dto.ToUnixTimeMilliseconds();
         return null;

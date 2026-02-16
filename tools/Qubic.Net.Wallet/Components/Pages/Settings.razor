@@ -2,173 +2,193 @@
 @inject QubicSettingsService Cfg
 @inject QubicBackendService Backend
 @inject LabelService Labels
+@inject QubicStaticService StaticData
 @inject IJSRuntime JS
 
 <h4>Settings</h4>
 <p class="text-muted">Configure Qubic.Net Wallet behavior.</p>
 
-<div class="row">
-    <div class="col-md-6">
-        <div class="card mb-3">
-            <div class="card-header">Appearance</div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label">Theme</label>
-                    <select class="form-select" value="@_theme" @onchange="OnThemeChanged">
-                        <option value="light">Light</option>
-                        <option value="dark">Dark</option>
-                    </select>
-                </div>
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link @(_activeTab == "general" ? "active" : "")" href="" @onclick="@(() => SetTab("general"))" @onclick:preventDefault>
+            <i class="bi bi-gear me-1"></i>General
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(_activeTab == "connection" ? "active" : "")" href="" @onclick="@(() => SetTab("connection"))" @onclick:preventDefault>
+            <i class="bi bi-plug me-1"></i>Connection
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(_activeTab == "transactions" ? "active" : "")" href="" @onclick="@(() => SetTab("transactions"))" @onclick:preventDefault>
+            <i class="bi bi-arrow-left-right me-1"></i>Transactions
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link @(_activeTab == "labels" ? "active" : "")" href="" @onclick="@(() => SetTab("labels"))" @onclick:preventDefault>
+            <i class="bi bi-tags me-1"></i>Labels
+        </a>
+    </li>
+</ul>
+
+@if (_activeTab == "general")
+{
+    <div class="row"><div class="col-md-6">
+        <div class="mb-3">
+            <label class="form-label">Theme</label>
+            <select class="form-select" value="@_theme" @onchange="OnThemeChanged">
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+            </select>
+        </div>
+    </div></div>
+}
+else if (_activeTab == "connection")
+{
+    <div class="row"><div class="col-md-8">
+        <div class="mb-3">
+            <label class="form-label">Default Backend</label>
+            <select class="form-select" value="@Backend.ActiveBackend" @onchange="OnBackendChanged">
+                <option value="@QueryBackend.Rpc">RPC</option>
+                <option value="@QueryBackend.Bob">Bob (JSON-RPC)</option>
+                <option value="@QueryBackend.DirectNetwork">Direct Network</option>
+            </select>
+            <div class="form-text">
+                RPC supports most features. Bob provides transfer history.
+                Direct Network connects to a node directly.
             </div>
         </div>
 
-        <div class="card mb-3">
-            <div class="card-header">Connection Settings</div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label">Default Backend</label>
-                    <select class="form-select" value="@Backend.ActiveBackend" @onchange="OnBackendChanged">
-                        <option value="@QueryBackend.Rpc">RPC</option>
-                        <option value="@QueryBackend.Bob">Bob (JSON-RPC)</option>
-                        <option value="@QueryBackend.DirectNetwork">Direct Network</option>
-                    </select>
-                    <div class="form-text">
-                        RPC supports most features. Bob provides transfer history.
-                        Direct Network connects to a node directly.
-                    </div>
-                </div>
+        <div class="mb-3">
+            <label class="form-label">RPC Connection</label>
+            <div class="input-group">
+                <select class="form-select" style="max-width:100px"
+                        value="@Backend.RpcScheme" @onchange="OnRpcSchemeChanged">
+                    <option value="https">https</option>
+                    <option value="http">http</option>
+                </select>
+                <input type="text" class="form-control" placeholder="Host"
+                       value="@Backend.RpcHost" @onchange="OnRpcHostChanged" />
+                <input type="number" class="form-control" style="max-width:100px"
+                       placeholder="Port" min="1" max="65535"
+                       value="@Backend.RpcPort" @onchange="OnRpcPortChanged" />
+            </div>
+            <div class="form-text">Current URL: <code>@Backend.RpcUrl</code></div>
+        </div>
 
-                <div class="mb-3">
-                    <label class="form-label">RPC Connection</label>
-                    <div class="input-group">
-                        <select class="form-select" style="max-width:100px"
-                                value="@Backend.RpcScheme" @onchange="OnRpcSchemeChanged">
-                            <option value="https">https</option>
-                            <option value="http">http</option>
-                        </select>
-                        <input type="text" class="form-control" placeholder="Host"
-                               value="@Backend.RpcHost" @onchange="OnRpcHostChanged" />
-                        <input type="number" class="form-control" style="max-width:100px"
-                               placeholder="Port" min="1" max="65535"
-                               value="@Backend.RpcPort" @onchange="OnRpcPortChanged" />
-                    </div>
-                    <div class="form-text">Current URL: <code>@Backend.RpcUrl</code></div>
-                </div>
+        <div class="mb-3">
+            <label class="form-label">Bob Connection</label>
+            <div class="input-group">
+                <select class="form-select" style="max-width:100px"
+                        value="@Backend.BobScheme" @onchange="OnBobSchemeChanged">
+                    <option value="https">https</option>
+                    <option value="http">http</option>
+                </select>
+                <input type="text" class="form-control" placeholder="Host"
+                       value="@Backend.BobHost" @onchange="OnBobHostChanged" />
+                <input type="number" class="form-control" style="max-width:100px"
+                       placeholder="Port" min="1" max="65535"
+                       value="@Backend.BobPort" @onchange="OnBobPortChanged" />
+            </div>
+            <div class="form-text">Current URL: <code>@Backend.BobUrl</code></div>
+        </div>
 
-                <div class="mb-3">
-                    <label class="form-label">Bob Connection</label>
-                    <div class="input-group">
-                        <select class="form-select" style="max-width:100px"
-                                value="@Backend.BobScheme" @onchange="OnBobSchemeChanged">
-                            <option value="https">https</option>
-                            <option value="http">http</option>
-                        </select>
-                        <input type="text" class="form-control" placeholder="Host"
-                               value="@Backend.BobHost" @onchange="OnBobHostChanged" />
-                        <input type="number" class="form-control" style="max-width:100px"
-                               placeholder="Port" min="1" max="65535"
-                               value="@Backend.BobPort" @onchange="OnBobPortChanged" />
-                    </div>
-                    <div class="form-text">Current URL: <code>@Backend.BobUrl</code></div>
-                </div>
-
-                <div class="mb-3">
-                    <label class="form-label">Node Connection</label>
-                    <div class="input-group">
-                        <span class="input-group-text" style="min-width:100px;justify-content:center">TCP</span>
-                        <input type="text" class="form-control" placeholder="Host"
-                               value="@Backend.NodeHost" @onchange="OnNodeHostChanged" />
-                        <input type="number" class="form-control" style="max-width:100px"
-                               placeholder="Port" min="1" max="65535"
-                               value="@Backend.NodePort" @onchange="OnNodePortChanged" />
-                    </div>
-                    <div class="form-text">Current: <code>tcp://@(Backend.NodeHost):@(Backend.NodePort)</code></div>
-                </div>
+        <div class="mb-3">
+            <label class="form-label">Node Connection</label>
+            <div class="input-group">
+                <span class="input-group-text" style="min-width:100px;justify-content:center">TCP</span>
+                <input type="text" class="form-control" placeholder="Host"
+                       value="@Backend.NodeHost" @onchange="OnNodeHostChanged" />
+                <input type="number" class="form-control" style="max-width:100px"
+                       placeholder="Port" min="1" max="65535"
+                       value="@Backend.NodePort" @onchange="OnNodePortChanged" />
+            </div>
+            <div class="form-text">Current: <code>tcp://@(Backend.NodeHost):@(Backend.NodePort)</code></div>
+        </div>
+    </div></div>
+}
+else if (_activeTab == "transactions")
+{
+    <div class="row"><div class="col-md-6">
+        <div class="mb-3">
+            <label class="form-label">Auto-Tick Offset</label>
+            <input type="number" class="form-control" min="1" max="100"
+                   value="@Cfg.TickOffset"
+                   @onchange="e => Cfg.TickOffset = int.TryParse(e.Value?.ToString(), out var v) ? v : 5" />
+            <div class="form-text">
+                Number of ticks added to the current tick when using auto-tick.
             </div>
         </div>
 
-        <div class="card mb-3">
-            <div class="card-header">Transaction Settings</div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label">Auto-Tick Offset</label>
-                    <input type="number" class="form-control" min="1" max="100"
-                           value="@Cfg.TickOffset"
-                           @onchange="e => Cfg.TickOffset = int.TryParse(e.Value?.ToString(), out var v) ? v : 5" />
-                    <div class="form-text">
-                        Number of ticks added to the current tick when using auto-tick.
-                    </div>
-                </div>
+        <div class="mb-3">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="autoResend"
+                       checked="@Cfg.AutoResend"
+                       @onchange="e => Cfg.AutoResend = (bool)(e.Value ?? false)" />
+                <label class="form-check-label" for="autoResend">
+                    Auto-Resend Failed Transactions
+                </label>
+            </div>
+            <div class="form-text">
+                Automatically re-sign and rebroadcast transactions whose target tick has passed.
+            </div>
+        </div>
 
-                <div class="mb-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="autoResend"
-                               checked="@Cfg.AutoResend"
-                               @onchange="e => Cfg.AutoResend = (bool)(e.Value ?? false)" />
-                        <label class="form-check-label" for="autoResend">
-                            Auto-Resend Failed Transactions
-                        </label>
-                    </div>
-                    <div class="form-text">
-                        Automatically re-sign and rebroadcast transactions whose target tick has passed.
-                    </div>
-                </div>
+        @if (Cfg.AutoResend)
+        {
+            <div class="mb-3">
+                <label class="form-label">Max Resend Attempts</label>
+                <input type="number" class="form-control" min="1" max="20"
+                       value="@Cfg.AutoResendMaxRetries"
+                       @onchange="e => Cfg.AutoResendMaxRetries = int.TryParse(e.Value?.ToString(), out var v) ? v : 3" />
+            </div>
+        }
+    </div></div>
+}
+else if (_activeTab == "labels")
+{
+    <div class="row"><div class="col-md-6">
+        <div class="mb-3">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="remoteLabels"
+                       checked="@Cfg.RemoteLabelsEnabled"
+                       @onchange="OnRemoteLabelsToggled" />
+                <label class="form-check-label" for="remoteLabels">
+                    Load labels from remote registry
+                </label>
+            </div>
+            <div class="form-text">
+                Fetches known address labels from <code>static.qubic.org</code> on startup.
+            </div>
+        </div>
 
-                @if (Cfg.AutoResend)
+        @if (Cfg.RemoteLabelsEnabled)
+        {
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <button class="btn btn-outline-primary btn-sm" @onclick="RefreshLabels" disabled="@StaticData.IsLoading">
+                    <i class="bi bi-arrow-clockwise me-1"></i>@(StaticData.IsLoading ? "Loading..." : "Refresh Labels")
+                </button>
+                @if (StaticData.LastFetched != null)
                 {
-                    <div class="mb-3">
-                        <label class="form-label">Max Resend Attempts</label>
-                        <input type="number" class="form-control" min="1" max="20"
-                               value="@Cfg.AutoResendMaxRetries"
-                               @onchange="e => Cfg.AutoResendMaxRetries = int.TryParse(e.Value?.ToString(), out var v) ? v : 3" />
-                    </div>
+                    <span class="text-muted small">
+                        @Labels.RemoteLabelCount labels at @StaticData.LastFetched.Value.ToString("HH:mm:ss")
+                    </span>
                 }
             </div>
-        </div>
 
-        <div class="card mb-3">
-            <div class="card-header">Address Labels</div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="remoteLabels"
-                               checked="@Cfg.RemoteLabelsEnabled"
-                               @onchange="OnRemoteLabelsToggled" />
-                        <label class="form-check-label" for="remoteLabels">
-                            Load labels from remote registry
-                        </label>
-                    </div>
-                    <div class="form-text">
-                        Fetches known address labels from <code>static.qubic.org</code> on startup.
-                    </div>
-                </div>
-
-                @if (Cfg.RemoteLabelsEnabled)
-                {
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <button class="btn btn-outline-primary btn-sm" @onclick="RefreshLabels" disabled="@Labels.IsLoading">
-                            <i class="bi bi-arrow-clockwise me-1"></i>@(Labels.IsLoading ? "Loading..." : "Refresh Labels")
-                        </button>
-                        @if (Labels.LastFetched != null)
-                        {
-                            <span class="text-muted small">
-                                @Labels.RemoteLabelCount labels at @Labels.LastFetched.Value.ToString("HH:mm:ss")
-                            </span>
-                        }
-                    </div>
-
-                    @if (Labels.LastError != null)
-                    {
-                        <div class="alert alert-danger small py-1 mb-0">@Labels.LastError</div>
-                    }
-                }
-            </div>
-        </div>
-    </div>
-</div>
+            @if (StaticData.LastError != null)
+            {
+                <div class="alert alert-danger small py-1 mb-0">@StaticData.LastError</div>
+            }
+        }
+    </div></div>
+}
 
 @code {
     private string _theme = "light";
+    private string _activeTab = "general";
+
+    private void SetTab(string tab) => _activeTab = tab;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -217,12 +237,12 @@
         if (Cfg.RemoteLabelsEnabled)
             await RefreshLabels();
         else
-            Labels.ClearRemoteLabels();
+            StaticData.Clear();
     }
 
     private async Task RefreshLabels()
     {
-        await Labels.LoadRemoteLabelsAsync();
+        await StaticData.LoadAsync();
         StateHasChanged();
     }
 }

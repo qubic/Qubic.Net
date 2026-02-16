@@ -1,4 +1,5 @@
 @page "/qx"
+@implements IDisposable
 @inject QubicBackendService Backend
 @inject SeedSessionService Seed
 @inject TickMonitorService TickMonitor
@@ -13,7 +14,69 @@
     <div class="small text-muted mb-2">
         Fees &mdash; Issuance: <strong>@_fees.Value.issuance.ToString("N0")</strong> QU |
         Transfer: <strong>@_fees.Value.transfer.ToString("N0")</strong> QU |
-        Trade: <strong>@_fees.Value.trade.ToString("N0")</strong> QU
+        Trade: <strong>@FormatTradeFee(_fees.Value.trade)</strong>
+    </div>
+}
+
+@if (_ordersLoading)
+{
+    <div class="text-muted mb-3"><span class="spinner-border spinner-border-sm me-1"></span> Loading your open orders...</div>
+}
+else if ((_myAskOrders != null && _myAskOrders.Count > 0) || (_myBidOrders != null && _myBidOrders.Count > 0))
+{
+    <div class="card mb-3 border-primary">
+        <div class="card-header card-header-accent">Your Open Orders</div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr><th>Type</th><th>Asset</th><th>Price</th><th>Shares</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        @if (_myAskOrders != null)
+                        {
+                            @foreach (var o in _myAskOrders)
+                            {
+                                var order = o;
+                                var key = $"a:{o.AssetName}:{o.Price}:{o.NumberOfShares}";
+                                var isCancelling = IsCancelPending(key);
+                                <tr>
+                                    <td><span class="badge bg-danger">Ask</span></td>
+                                    <td class="mono">@(Qubic.Core.AssetNameHelper.FromUlong(o.AssetName) ?? "?")</td>
+                                    <td class="mono">@o.Price.ToString("N0")</td>
+                                    <td class="mono">@o.NumberOfShares.ToString("N0")</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => CancelAskOrder(order, key)" disabled="@(isCancelling || _pendingCancels.Count > 0)">
+                                            @if (isCancelling) { <span class="spinner-border spinner-border-sm me-1"></span> } Cancel
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        @if (_myBidOrders != null)
+                        {
+                            @foreach (var o in _myBidOrders)
+                            {
+                                var order = o;
+                                var key = $"b:{o.AssetName}:{o.Price}:{o.NumberOfShares}";
+                                var isCancelling = IsCancelPending(key);
+                                <tr>
+                                    <td><span class="badge bg-success">Bid</span></td>
+                                    <td class="mono">@(Qubic.Core.AssetNameHelper.FromUlong(o.AssetName) ?? "?")</td>
+                                    <td class="mono">@o.Price.ToString("N0")</td>
+                                    <td class="mono">@o.NumberOfShares.ToString("N0")</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => CancelBidOrder(order, key)" disabled="@(isCancelling || _pendingCancels.Count > 0)">
+                                            @if (isCancelling) { <span class="spinner-border spinner-border-sm me-1"></span> } Cancel
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 }
 
@@ -122,8 +185,13 @@ else
                                 <input type="number" class="form-control form-control-sm" @bind="_rightsShares" />
                             </div>
                             <div class="mb-2">
-                                <label class="form-label-sm">New Managing Contract Index</label>
-                                <input type="number" class="form-control form-control-sm" min="0" @bind="_rightsContractIndex" />
+                                <label class="form-label-sm">New Managing Contract</label>
+                                <select class="form-select form-select-sm" @bind="_rightsContractIndex">
+                                    @foreach (var c in Qubic.Core.QubicContracts.GetManagementRightsTargets())
+                                    {
+                                        <option value="@c.Index">@c.Name (@c.Index)</option>
+                                    }
+                                </select>
                             </div>
                             <button class="btn btn-primary" @onclick="TransferRights" disabled="@_sending">
                                 @(_sending ? "Transferring..." : "Transfer Rights")
@@ -161,6 +229,12 @@ else
 
     private const int ContractIndex = 1; // QX
 
+    // Open orders
+    private bool _ordersLoading;
+    private readonly Dictionary<string, string> _pendingCancels = new(); // orderKey → txHash
+    private List<Qubic.Core.Contracts.Qx.EntityAskOrdersOrder>? _myAskOrders;
+    private List<Qubic.Core.Contracts.Qx.EntityBidOrdersOrder>? _myBidOrders;
+
     // Issue
     private string _issueName = "";
     private long _issueShares;
@@ -190,6 +264,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        TxTracker.OnChanged += OnTrackerChanged;
+        // Load fees
         try
         {
             var result = await Backend.QuerySmartContractAsync(ContractIndex, 1, []);
@@ -202,7 +278,110 @@ else
                 );
             }
         }
-        catch { /* fee display is best-effort */ }
+        catch { }
+
+        if (Seed.HasSeed && Seed.Identity != null)
+            await LoadOpenOrders();
+    }
+
+    private async Task LoadOpenOrders()
+    {
+        if (!Seed.HasSeed || Seed.Identity == null) return;
+        _ordersLoading = true;
+        try
+        {
+            var pk = Seed.Identity.Value.PublicKey;
+            var askInput = new Qubic.Core.Contracts.Qx.EntityAskOrdersInput { Entity = pk, Offset = 0 }.ToBytes();
+            var bidInput = new Qubic.Core.Contracts.Qx.EntityBidOrdersInput { Entity = pk, Offset = 0 }.ToBytes();
+            var askTask = Backend.QuerySmartContractAsync(ContractIndex, 4, askInput);
+            var bidTask = Backend.QuerySmartContractAsync(ContractIndex, 5, bidInput);
+            await Task.WhenAll(askTask, bidTask);
+
+            if (askTask.Result.Length >= Qubic.Core.Contracts.Qx.EntityAskOrdersOrder.Size)
+                _myAskOrders = Qubic.Core.Contracts.Qx.EntityAskOrdersOutput.FromBytes(askTask.Result)
+                    .Orders.Where(o => o.NumberOfShares > 0).ToList();
+            if (bidTask.Result.Length >= Qubic.Core.Contracts.Qx.EntityBidOrdersOrder.Size)
+                _myBidOrders = Qubic.Core.Contracts.Qx.EntityBidOrdersOutput.FromBytes(bidTask.Result)
+                    .Orders.Where(o => o.NumberOfShares > 0).ToList();
+        }
+        catch { }
+        finally { _ordersLoading = false; }
+    }
+
+    private async Task CancelAskOrder(Qubic.Core.Contracts.Qx.EntityAskOrdersOrder order, string key)
+    {
+        try
+        {
+            var tick = await GetTick();
+            var payload = new Qubic.Core.Contracts.Qx.RemoveFromAskOrderPayload
+            {
+                Issuer = order.Issuer, AssetName = order.AssetName,
+                Price = order.Price, NumberOfShares = order.NumberOfShares
+            };
+            var dest = Qubic.Core.Entities.QubicIdentity.FromPublicKey(Qubic.Core.QubicContracts.GetContractPublicKey(ContractIndex));
+            var tx = Seed.CreateAndSignTransaction(dest, 0, tick, payload);
+            var result = await Backend.BroadcastTransactionAsync(tx);
+            var name = Qubic.Core.AssetNameHelper.FromUlong(order.AssetName) ?? "?";
+            TxTracker.Track(new TrackedTransaction { Hash = result.TransactionId, Source = Seed.Identity?.ToString() ?? "",
+                Destination = dest.ToString(), Amount = 0, TargetTick = tick,
+                InputType = payload.InputType, PayloadHex = Convert.ToHexString(payload.GetPayloadBytes()),
+                Description = $"Cancel Ask {name}: {order.NumberOfShares:N0} @ {order.Price:N0} QU" });
+            _pendingCancels[key] = result.TransactionId;
+        }
+        catch { }
+    }
+
+    private async Task CancelBidOrder(Qubic.Core.Contracts.Qx.EntityBidOrdersOrder order, string key)
+    {
+        try
+        {
+            var tick = await GetTick();
+            var payload = new Qubic.Core.Contracts.Qx.RemoveFromBidOrderPayload
+            {
+                Issuer = order.Issuer, AssetName = order.AssetName,
+                Price = order.Price, NumberOfShares = order.NumberOfShares
+            };
+            var dest = Qubic.Core.Entities.QubicIdentity.FromPublicKey(Qubic.Core.QubicContracts.GetContractPublicKey(ContractIndex));
+            var tx = Seed.CreateAndSignTransaction(dest, 0, tick, payload);
+            var result = await Backend.BroadcastTransactionAsync(tx);
+            var name = Qubic.Core.AssetNameHelper.FromUlong(order.AssetName) ?? "?";
+            TxTracker.Track(new TrackedTransaction { Hash = result.TransactionId, Source = Seed.Identity?.ToString() ?? "",
+                Destination = dest.ToString(), Amount = 0, TargetTick = tick,
+                InputType = payload.InputType, PayloadHex = Convert.ToHexString(payload.GetPayloadBytes()),
+                Description = $"Cancel Bid {name}: {order.NumberOfShares:N0} @ {order.Price:N0} QU" });
+            _pendingCancels[key] = result.TransactionId;
+        }
+        catch { }
+    }
+
+    private bool IsCancelPending(string orderKey)
+    {
+        if (!_pendingCancels.TryGetValue(orderKey, out var txHash)) return false;
+        var tx = TxTracker.Transactions.FirstOrDefault(t => t.Hash == txHash);
+        if (tx == null || tx.Status != TrackedTxStatus.Pending)
+        {
+            _pendingCancels.Remove(orderKey);
+            return false;
+        }
+        return true;
+    }
+
+    private void OnTrackerChanged()
+    {
+        var anyResolved = false;
+        foreach (var (key, txHash) in _pendingCancels.ToList())
+        {
+            var tx = TxTracker.Transactions.FirstOrDefault(t => t.Hash == txHash);
+            if (tx == null || tx.Status != TrackedTxStatus.Pending)
+            {
+                _pendingCancels.Remove(key);
+                anyResolved = true;
+            }
+        }
+        if (anyResolved)
+            _ = InvokeAsync(async () => { await LoadOpenOrders(); StateHasChanged(); });
+        else
+            InvokeAsync(StateHasChanged);
     }
 
     private async Task IssueAsset()
@@ -341,6 +520,12 @@ else
             : (await Backend.GetTickInfoAsync()).Tick + (uint)Settings.TickOffset;
     }
 
+    private static string FormatTradeFee(uint billionths)
+    {
+        var pct = billionths / 10_000_000.0;
+        return pct % 1 == 0 ? $"{pct:F0}%" : $"{pct:G}%";
+    }
+
     private async Task BroadcastAndTrack(long amount, uint tick, Qubic.Core.Payloads.ITransactionPayload payload, ushort inputType, string description)
     {
         var dest = Qubic.Core.Entities.QubicIdentity.FromPublicKey(Qubic.Core.QubicContracts.GetContractPublicKey(ContractIndex));
@@ -359,5 +544,10 @@ else
             PayloadHex = Convert.ToHexString(payload.GetPayloadBytes()),
             Description = description
         });
+    }
+
+    public void Dispose()
+    {
+        TxTracker.OnChanged -= OnTrackerChanged;
     }
 }

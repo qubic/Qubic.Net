@@ -20,6 +20,35 @@
     </div>
 }
 
+@if (_vaultsLoading)
+{
+    <div class="text-muted mb-3"><span class="spinner-border spinner-border-sm me-1"></span> Loading your vaults...</div>
+}
+else if (_myVaults != null && _myVaults.Count > 0)
+{
+    <div class="card mb-3 border-primary">
+        <div class="card-header card-header-accent">Your Vaults</div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr><th>Vault ID</th><th>Name</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var v in _myVaults)
+                        {
+                            <tr>
+                                <td class="mono">@v.Id</td>
+                                <td class="mono small">@v.Name</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
 @if (!Seed.HasSeed)
 {
     <div class="alert alert-warning">Enter your seed in the top bar to enable signing.</div>
@@ -217,6 +246,10 @@ else
     private const int ContractIndex = 11;
     private (ulong register, ulong release, ulong reset, ulong holding, ulong deposit, ulong burn)? _fees;
 
+    // Auto-load vaults
+    private bool _vaultsLoading;
+    private List<(ulong Id, string Name)>? _myVaults;
+
     // Register
     private string _regVaultName = ""; private ulong _regApprovals = 1; private long _regFee;
     // Deposit
@@ -238,6 +271,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        // Load fees
         try
         {
             var result = await Backend.QuerySmartContractAsync(ContractIndex, 10, []);
@@ -247,6 +281,40 @@ else
                          BitConverter.ToUInt64(result, 32), BitConverter.ToUInt64(result, 40));
         }
         catch { }
+
+        // Auto-load owned vaults
+        if (Seed.HasSeed && Seed.Identity != null)
+        {
+            _vaultsLoading = true;
+            try
+            {
+                var pk = Seed.Identity.Value.PublicKey;
+                var input = new Qubic.Core.Contracts.Msvault.GetVaultsInput { PublicKey = pk }.ToBytes();
+                var data = await Backend.QuerySmartContractAsync(ContractIndex, 5, input);
+                if (data.Length >= 8)
+                {
+                    var numVaults = BitConverter.ToUInt64(data, 0);
+                    var maxVaults = (int)Math.Min(numVaults, 64);
+                    _myVaults = new();
+                    for (int i = 0; i < maxVaults && 8 + i * 8 + 8 <= data.Length; i++)
+                    {
+                        var vaultId = BitConverter.ToUInt64(data, 8 + i * 8);
+                        var namesOffset = 8 + maxVaults * 8;
+                        var name = "(unknown)";
+                        if (namesOffset + i * 32 + 32 <= data.Length)
+                        {
+                            var namePk = data.AsSpan(namesOffset + i * 32, 32).ToArray();
+                            try { name = Qubic.Core.Entities.QubicIdentity.FromPublicKey(namePk).ToString(); }
+                            catch { name = Convert.ToHexString(namePk[..8]) + "..."; }
+                        }
+                        _myVaults.Add((vaultId, name));
+                    }
+                    if (_myVaults.Count == 0) _myVaults = null;
+                }
+            }
+            catch { }
+            finally { _vaultsLoading = false; }
+        }
     }
 
     private async Task<uint> GetTick() => TickMonitor.IsConnected

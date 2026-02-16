@@ -35,7 +35,7 @@ else
     @* ── Stream Status ── *@
     <div class="row mb-3">
         @* RPC *@
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>@StreamIcon(Sync.RpcStatus) RPC Transactions</span>
@@ -53,20 +53,8 @@ else
                 </div>
             </div>
         </div>
-        @* Bob Transfers *@
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>@StreamIcon(Sync.BobTransferStatus) Bob Transfers</span>
-                    <span class="badge @StatusBadgeClass(Sync.BobTransferStatus)">@Sync.BobTransferStatus</span>
-                </div>
-                <div class="card-body small">
-                    <p class="mb-0">@(Sync.BobTransferStatusMessage ?? "Idle")</p>
-                </div>
-            </div>
-        </div>
         @* Bob Logs *@
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>@StreamIcon(Sync.BobLogStatus) Bob Logs</span>
@@ -130,11 +118,11 @@ else
                             <button class="btn btn-sm btn-outline-warning" @onclick="ResetRpc">
                                 <i class="bi bi-arrow-counterclockwise me-1"></i>Reset RPC watermark & re-sync
                             </button>
-                            <button class="btn btn-sm btn-outline-warning" @onclick="ResetBobTransfers">
-                                <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Bob Transfers watermark & re-sync
+                            <button class="btn btn-sm btn-outline-warning" @onclick="ResetBobLogId">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Bob Log ID only (keep epoch)
                             </button>
                             <button class="btn btn-sm btn-outline-warning" @onclick="ResetBobLogs">
-                                <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Bob Logs watermark & re-sync
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Bob Logs (Log ID + Epoch)
                             </button>
                             <button class="btn btn-sm btn-outline-warning" @onclick="ResetAll">
                                 <i class="bi bi-arrow-counterclockwise me-1"></i>Reset ALL watermarks & re-sync
@@ -262,15 +250,15 @@ else
         RefreshData();
     }
 
-    private void ResetBobTransfers()
+    private void ResetBobLogId()
     {
-        WalletStorage.ResetWatermarkAndResync("bob_transfer_last_logid");
+        WalletStorage.ResetWatermarkAndResync("bob_log_last_logid");
         RefreshData();
     }
 
     private void ResetBobLogs()
     {
-        WalletStorage.ResetWatermarkAndResync("bob_log_last_logid");
+        WalletStorage.ResetBobLogsAndResync();
         RefreshData();
     }
 

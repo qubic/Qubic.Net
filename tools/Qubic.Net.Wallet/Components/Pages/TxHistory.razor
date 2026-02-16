@@ -41,14 +41,6 @@
                     <span class="text-muted">@(sync.RpcStatusMessage ?? "Idle")</span>
                 </div>
                 <div class="d-flex align-items-center gap-2 mb-1">
-                    @if (IsStreamSpinner(sync.BobTransferStatus))
-                    { <span class="spinner-border spinner-border-sm text-primary" style="width:.7em;height:.7em"></span> }
-                    else
-                    { <i class="@StreamIconClass(sync.BobTransferStatus)"></i> }
-                    <strong>Bob Transfers:</strong>
-                    <span class="text-muted">@(sync.BobTransferStatusMessage ?? "Idle")</span>
-                </div>
-                <div class="d-flex align-items-center gap-2 mb-1">
                     @if (IsStreamSpinner(sync.BobLogStatus))
                     { <span class="spinner-border spinner-border-sm text-primary" style="width:.7em;height:.7em"></span> }
                     else
@@ -272,6 +264,11 @@ else
             <option value="@Qubic.Services.Storage.TransactionDirection.Sent">Sent</option>
             <option value="@Qubic.Services.Storage.TransactionDirection.Received">Received</option>
         </select>
+        <select class="form-select form-select-sm" style="width:auto" @bind="_allHashType" @bind:after="LoadAllTransactions">
+            <option value="@Qubic.Services.Storage.TxHashType.All">All Types</option>
+            <option value="@Qubic.Services.Storage.TxHashType.User">User</option>
+            <option value="@Qubic.Services.Storage.TxHashType.System">System</option>
+        </select>
         <input type="number" class="form-control form-control-sm" style="width:120px" placeholder="Min tick"
                @bind="_allMinTick" @bind:event="oninput" />
         <input type="number" class="form-control form-control-sm" style="width:120px" placeholder="Max tick"
@@ -289,6 +286,7 @@ else
             <table class="table table-sm table-hover">
                 <thead>
                     <tr>
+                        <th>Time</th>
                         <th>Tick</th>
                         <th>Tx Hash</th>
                         <th>Source</th>
@@ -302,6 +300,7 @@ else
                     @foreach (var tx in _allTransactions)
                     {
                         <tr>
+                            <td class="small text-nowrap">@FormatTimestamp(tx.TimestampMs)</td>
                             <td class="mono">@tx.Tick.ToString("N0")</td>
                             <td class="mono small" style="max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"
                                 title="@tx.Hash">
@@ -325,7 +324,7 @@ else
                         @if (_allExpandedHash == tx.Hash)
                         {
                             <tr>
-                                <td colspan="7">
+                                <td colspan="8">
                                     <div class="bg-body-secondary rounded p-3">
                                         <table class="table table-sm table-borderless mb-0">
                                             <tr><td class="text-muted" style="width:120px">Tx Hash</td><td class="mono">@tx.Hash</td></tr>
@@ -333,6 +332,10 @@ else
                                             <tr><td class="text-muted">Destination</td><td><AddressDisplay Address="@tx.Destination" ShowFull="true" /></td></tr>
                                             <tr><td class="text-muted">Amount</td><td>@long.Parse(tx.Amount).ToString("N0") QU</td></tr>
                                             <tr><td class="text-muted">Tick</td><td>@tx.Tick.ToString("N0")</td></tr>
+                                            @if (tx.TimestampMs.HasValue)
+                                            {
+                                                <tr><td class="text-muted">Timestamp</td><td>@DateTimeOffset.FromUnixTimeMilliseconds(tx.TimestampMs.Value).UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss") UTC</td></tr>
+                                            }
                                             <tr><td class="text-muted">Input Type</td><td>@tx.InputType</td></tr>
                                             @if (tx.MoneyFlew.HasValue)
                                             {
@@ -383,6 +386,7 @@ else
     // All transactions tab state
     private List<Qubic.Services.Storage.StoredTransaction>? _allTransactions;
     private Qubic.Services.Storage.TransactionDirection _allDirection = Qubic.Services.Storage.TransactionDirection.All;
+    private Qubic.Services.Storage.TxHashType _allHashType = Qubic.Services.Storage.TxHashType.All;
     private uint? _allMinTick;
     private uint? _allMaxTick;
     private int _allOffset;
@@ -425,6 +429,7 @@ else
         _allTransactions = WalletStorage.GetTransactions(new Qubic.Services.Storage.TransactionQuery
         {
             Direction = _allDirection,
+            HashType = _allHashType,
             MinTick = _allMinTick,
             MaxTick = _allMaxTick,
             Offset = _allOffset,
@@ -548,6 +553,13 @@ else
 
     private static bool IsStreamSpinner(Qubic.Services.Storage.StreamStatus status) =>
         status is Qubic.Services.Storage.StreamStatus.Connecting or Qubic.Services.Storage.StreamStatus.CatchingUp;
+
+    private static string FormatTimestamp(long? timestampMs)
+    {
+        if (!timestampMs.HasValue) return "—";
+        var dt = DateTimeOffset.FromUnixTimeMilliseconds(timestampMs.Value).UtcDateTime;
+        return dt.ToString("yyyy-MM-dd HH:mm");
+    }
 
     public void Dispose()
     {

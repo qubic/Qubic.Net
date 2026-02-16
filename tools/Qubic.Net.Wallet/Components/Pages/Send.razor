@@ -83,6 +83,7 @@ else
                             <strong>Confirm:</strong> Send <strong>@FormatQu(_amount)</strong> QU
                             to <span class="mono">@_destination?[..20]...</span>
                             at tick <strong>@_resolvedTick.ToString("N0")</strong>
+                            <div class="small text-muted mt-1">Network fee: 0 QU (included in amount)</div>
                         </div>
                         <button class="btn btn-success me-2" @onclick="SendTransaction" disabled="@_sending">
                             @(_sending ? "Sending..." : "Sign & Broadcast")

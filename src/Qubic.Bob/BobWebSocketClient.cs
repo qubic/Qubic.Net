@@ -393,36 +393,57 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
 
     private void ProcessMessage(string message)
     {
+        JsonRpcMessage? msg;
         try
         {
-            var msg = JsonSerializer.Deserialize<JsonRpcMessage>(message, _jsonOptions);
-            if (msg is null) return;
-
-            if (msg.IsResponse)
-            {
-                // Response to a pending request
-                if (_pendingRequests.TryRemove(msg.Id!.Value, out var tcs))
-                {
-                    if (msg.Error is not null)
-                        tcs.TrySetException(new BobRpcException(msg.Error.Code, msg.Error.Message));
-                    else
-                        tcs.TrySetResult(msg.Result);
-                }
-            }
-            else if (msg.IsNotification)
-            {
-                // Subscription notification
-                var subscriptionId = msg.Params!.Subscription!;
-
-                if (_activeSubscriptions.TryGetValue(subscriptionId, out var entry))
-                {
-                    entry.DispatchNotification(msg.Params.Result!.Value);
-                }
-            }
+            msg = JsonSerializer.Deserialize<JsonRpcMessage>(message, _jsonOptions);
         }
         catch (JsonException)
         {
-            // Malformed message — skip
+            // Malformed JSON-RPC envelope — skip
+            EmitEvent(BobConnectionEventType.Error,
+                $"Failed to parse JSON-RPC message ({message.Length} chars)",
+                _activeNode?.BaseUrl);
+            return;
+        }
+
+        if (msg is null) return;
+
+        if (msg.IsResponse)
+        {
+            // Response to a pending request
+            if (_pendingRequests.TryRemove(msg.Id!.Value, out var tcs))
+            {
+                if (msg.Error is not null)
+                    tcs.TrySetException(new BobRpcException(msg.Error.Code, msg.Error.Message));
+                else
+                    tcs.TrySetResult(msg.Result);
+            }
+        }
+        else if (msg.IsNotification)
+        {
+            // Subscription notification
+            var subscriptionId = msg.Params!.Subscription!;
+
+            if (_activeSubscriptions.TryGetValue(subscriptionId, out var entry))
+            {
+                try
+                {
+                    entry.DispatchNotification(msg.Params.Result!.Value);
+                }
+                catch (Exception ex)
+                {
+                    EmitEvent(BobConnectionEventType.Error,
+                        $"Dispatch error for subscription {subscriptionId}: {ex.Message}",
+                        _activeNode?.BaseUrl, ex);
+                }
+            }
+            else
+            {
+                EmitEvent(BobConnectionEventType.Error,
+                    $"Notification for unknown subscription: {subscriptionId}",
+                    _activeNode?.BaseUrl);
+            }
         }
     }
 

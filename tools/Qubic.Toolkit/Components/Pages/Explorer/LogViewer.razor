@@ -8,8 +8,13 @@
     <div class="col-md-8">
         <div class="row g-2">
             <div class="col-3">
-                <label class="form-label-sm">Contract Index</label>
-                <input type="number" class="form-control form-control-sm" @bind="_contractIndex" />
+                <label class="form-label-sm">Contract</label>
+                <select class="form-select form-select-sm" @bind="_contractIndex">
+                    @foreach (var c in Qubic.Core.QubicContracts.GetAllContracts())
+                    {
+                        <option value="@c.Index">@c.Name (@c.Index)</option>
+                    }
+                </select>
             </div>
             <div class="col-3">
                 <label class="form-label-sm">Start Log ID (optional)</label>

@@ -100,6 +100,16 @@ public sealed class WalletStorageService : IDisposable
         _sync.Start(_identity);
     }
 
+    /// <summary>Resets both Bob log watermarks (log ID + epoch) and restarts sync.</summary>
+    public void ResetBobLogsAndResync()
+    {
+        if (!IsOpen || _identity == null) return;
+        _sync.Stop();
+        _db.DeleteWatermark("bob_log_last_logid");
+        _db.DeleteWatermark("bob_log_last_epoch");
+        _sync.Start(_identity);
+    }
+
     /// <summary>Resets all watermarks and restarts sync.</summary>
     public void ResetAllWatermarksAndResync()
     {
@@ -128,8 +138,6 @@ public sealed class WalletStorageService : IDisposable
         _sync.Stop();
         _db.ClearTransactions();
         _db.DeleteWatermark("rpc_last_offset");
-        _db.DeleteWatermark("bob_transfer_last_logid");
-        _db.DeleteWatermark("bob_transfer_last_epoch");
         _sync.Start(_identity);
     }
 

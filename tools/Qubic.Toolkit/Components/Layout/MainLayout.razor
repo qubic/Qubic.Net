@@ -8,6 +8,7 @@
 @inject Qubic.Services.Storage.WalletStorageService WalletStorage
 @inject PeerAutoDiscoverService PeerAutoDiscover
 @inject LabelService Labels
+@inject QubicStaticService StaticData
 
 <div class="d-flex flex-column vh-100">
     <nav class="navbar navbar-dark bg-dark px-3">
@@ -179,7 +180,7 @@
         await TickMonitor.StartAsync();
 
         if (Settings.ExtendedServicesConfigured == true && Settings.RemoteLabelsEnabled)
-            _ = Labels.LoadRemoteLabelsAsync();
+            _ = StaticData.LoadAsync();
     }
 
     private void ConfigureExtendedServices(bool enable)
@@ -188,7 +189,7 @@
         Settings.ExtendedServicesConfigured = enable;
 
         if (enable)
-            _ = Labels.LoadRemoteLabelsAsync();
+            _ = StaticData.LoadAsync();
     }
 
     private bool _disposed;

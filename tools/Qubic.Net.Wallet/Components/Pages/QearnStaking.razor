@@ -12,39 +12,55 @@
 {
     <div class="text-muted mb-3"><span class="spinner-border spinner-border-sm me-1"></span> Loading your staking info...</div>
 }
-else if (_autoLockStatus != null || _autoEndedStatus != null)
+else if (_activeLocks.Count > 0 || _autoEndedStatus != null)
 {
     <div class="card mb-3 border-primary">
-        <div class="card-header bg-primary text-white">Your Staking Summary</div>
+        <div class="card-header card-header-accent">Your Staking Summary</div>
         <div class="card-body">
-            @if (_autoLockStatus != null)
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-2">
+                    <thead>
+                        <tr>
+                            <th>Lock Epoch</th>
+                            <th>Locked Amount</th>
+                            <th>Week</th>
+                            <th>Remaining</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var l in _activeLocks)
+                        {
+                            <tr>
+                                <td class="mono">@l.Epoch</td>
+                                <td class="mono">@l.Amount.ToString("N0") QU</td>
+                                <td>@l.Week / 52</td>
+                                <td>@l.Remaining week@(l.Remaining != 1 ? "s" : "")</td>
+                            </tr>
+                        }
+                        @if (_autoEndedStatus != null)
+                        {
+                            var es = _autoEndedStatus.Value;
+                            @if (es.fullyUnlocked > 0)
+                            {
+                                <tr class="table-success">
+                                    <td colspan="2" class="mono">Fully Unlocked: @es.fullyUnlocked.ToString("N0") QU</td>
+                                    <td colspan="2" class="mono">Rewarded: @es.fullyRewarded.ToString("N0") QU</td>
+                                </tr>
+                            }
+                            @if (es.earlyUnlocked > 0)
+                            {
+                                <tr class="table-warning">
+                                    <td colspan="2" class="mono">Early Unlocked: @es.earlyUnlocked.ToString("N0") QU</td>
+                                    <td colspan="2" class="mono">Rewarded: @es.earlyRewarded.ToString("N0") QU</td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (_activeLocks.Count > 0)
             {
-                <div class="mb-2">
-                    <strong>Lock Status:</strong> @_autoLockedWeeks / 52 weeks locked
-                </div>
-                <div class="d-flex flex-wrap gap-1 mb-2">
-                    @for (int i = 0; i < 52; i++)
-                    {
-                        var bit = i;
-                        var locked = (_autoLockStatus.Value >> bit & 1) == 1;
-                        <span class="badge @(locked ? "bg-success" : "bg-secondary")" title="Week @(bit + 1)"
-                              style="width:24px; font-size:0.65rem">@(bit + 1)</span>
-                    }
-                </div>
-                <div class="small text-muted">
-                    <span class="badge bg-success">N</span> = locked &nbsp;
-                    <span class="badge bg-secondary">N</span> = not locked
-                </div>
-            }
-            @if (_autoEndedStatus != null)
-            {
-                <hr />
-                <div class="row small">
-                    <div class="col-md-6"><strong>Fully Unlocked:</strong> @_autoEndedStatus.Value.fullyUnlocked.ToString("N0") QU</div>
-                    <div class="col-md-6"><strong>Fully Rewarded:</strong> @_autoEndedStatus.Value.fullyRewarded.ToString("N0") QU</div>
-                    <div class="col-md-6"><strong>Early Unlocked:</strong> @_autoEndedStatus.Value.earlyUnlocked.ToString("N0") QU</div>
-                    <div class="col-md-6"><strong>Early Rewarded:</strong> @_autoEndedStatus.Value.earlyRewarded.ToString("N0") QU</div>
-                </div>
+                <div class="small text-muted">Total locked: <strong>@_activeLocks.Sum(l => (long)l.Amount).ToString("N0") QU</strong> across <strong>@_activeLocks.Count</strong> epoch@(_activeLocks.Count != 1 ? "s" : "")</div>
             }
         </div>
     </div>
@@ -68,6 +84,7 @@ else if (_autoLockStatus != null || _autoEndedStatus != null)
                 <div class="mb-2">
                     <label class="form-label-sm">Amount to lock (QU)</label>
                     <input type="number" class="form-control form-control-sm" min="1" @bind="_lockAmount" />
+                    <div class="form-text">The full amount will be locked. No additional fee.</div>
                 </div>
                 <button class="btn btn-primary" @onclick="Lock" disabled="@(_sending || _lockAmount <= 0)">
                     @(_sending ? "Locking..." : "Lock")
@@ -85,6 +102,7 @@ else if (_autoLockStatus != null || _autoEndedStatus != null)
                 <div class="mb-2">
                     <label class="form-label-sm">Locked Epoch</label>
                     <input type="number" class="form-control form-control-sm" min="0" @bind="_unlockEpoch" />
+                    <div class="form-text">No fee for unlocking.</div>
                 </div>
                 <button class="btn btn-warning" @onclick="Unlock" disabled="@(_sending || _unlockAmount <= 0)">
                     @(_sending ? "Unlocking..." : "Unlock")
@@ -195,9 +213,10 @@ else if (_autoLockStatus != null || _autoEndedStatus != null)
 
     // Auto-query
     private bool _autoLoading;
-    private ulong? _autoLockStatus;
-    private int _autoLockedWeeks;
+    private List<ActiveLock> _activeLocks = [];
     private (ulong fullyUnlocked, ulong fullyRewarded, ulong earlyUnlocked, ulong earlyRewarded)? _autoEndedStatus;
+
+    private record ActiveLock(uint Epoch, ulong Amount, int Week, int Remaining);
 
     // Lock
     private long _lockAmount;
@@ -221,16 +240,56 @@ else if (_autoLockStatus != null || _autoEndedStatus != null)
             try
             {
                 var pk = Seed.Identity!.Value.PublicKey;
+                var currentEpoch = TickMonitor.IsConnected ? TickMonitor.Epoch : 0u;
+                if (currentEpoch == 0)
+                {
+                    try { currentEpoch = (await Backend.GetTickInfoAsync()).Epoch; } catch { }
+                }
 
-                // Query lock status (function 4)
+                // Query lock status bitmask (function 4)
                 var lockInput = new Qubic.Core.Contracts.Qearn.GetUserLockStatusInput { User = pk }.ToBytes();
                 var lockResult = await Backend.QuerySmartContractAsync(ContractIndex, 4, lockInput);
-                if (lockResult.Length >= 8)
+                if (lockResult.Length >= 8 && currentEpoch > 0)
                 {
                     var ls = Qubic.Core.Contracts.Qearn.GetUserLockStatusOutput.FromBytes(lockResult);
-                    _autoLockStatus = ls.Status;
-                    _autoLockedWeeks = 0;
-                    for (int i = 0; i < 52; i++) if ((ls.Status >> i & 1) == 1) _autoLockedWeeks++;
+
+                    // Bit N in the status = locked for N weeks (lockEpoch = currentEpoch - N)
+                    var tasks = new List<(int WeeksLocked, uint LockEpoch, Task<byte[]> QueryTask)>();
+                    for (int i = 1; i < 52; i++) // bit 0 would mean locked this epoch (0 weeks)
+                    {
+                        if ((ls.Status >> i & 1) == 1)
+                        {
+                            var lockEpoch = currentEpoch - (uint)i;
+                            var amountInput = new Qubic.Core.Contracts.Qearn.GetUserLockedInfoInput { User = pk, Epoch = lockEpoch }.ToBytes();
+                            tasks.Add((i, lockEpoch, Backend.QuerySmartContractAsync(ContractIndex, 2, amountInput)));
+                        }
+                    }
+                    // Also check bit 0 (locked this epoch)
+                    if ((ls.Status & 1) == 1)
+                    {
+                        var amountInput = new Qubic.Core.Contracts.Qearn.GetUserLockedInfoInput { User = pk, Epoch = currentEpoch }.ToBytes();
+                        tasks.Add((0, currentEpoch, Backend.QuerySmartContractAsync(ContractIndex, 2, amountInput)));
+                    }
+
+                    if (tasks.Count > 0)
+                    {
+                        await Task.WhenAll(tasks.Select(t => t.QueryTask));
+                        foreach (var (weeksLocked, lockEpoch, queryTask) in tasks)
+                        {
+                            ulong amount = 0;
+                            try
+                            {
+                                var amountResult = queryTask.Result;
+                                if (amountResult.Length >= 8)
+                                    amount = Qubic.Core.Contracts.Qearn.GetUserLockedInfoOutput.FromBytes(amountResult).LockedAmount;
+                            }
+                            catch { }
+
+                            var remaining = 52 - weeksLocked;
+                            _activeLocks.Add(new ActiveLock(lockEpoch, amount, weeksLocked, remaining));
+                        }
+                        _activeLocks = _activeLocks.OrderBy(l => l.Epoch).ToList();
+                    }
                 }
 
                 // Query ended status (function 5)

@@ -80,18 +80,22 @@ public static class QubicContracts
     /// <summary>QDUEL - Duel contract. (epoch 199)</summary>
     public const int Qduel = 23;
 
+    // Single source of truth for contract index → name mapping.
+    private static readonly Dictionary<int, string> _contractNames = new()
+    {
+        [Core] = "Core", [Qx] = "QX", [Quottery] = "Quottery", [Random] = "Random",
+        [Qutil] = "QUtil", [Mlm] = "MLM", [Gqmprop] = "GQMProp", [Swatch] = "Swatch",
+        [Ccf] = "CCF", [Qearn] = "QEarn", [Qvault] = "QVault", [Msvault] = "MSVault",
+        [Qbay] = "QBay", [Qswap] = "QSwap", [Nost] = "Nostromo", [Qdraw] = "QDraw",
+        [Rl] = "RL", [Qbond] = "QBond", [Qip] = "QIP", [Qraffle] = "QRaffle",
+        [Qrwa] = "QRWA", [Qrp] = "QRP", [Qtf] = "QTF", [Qduel] = "QDuel"
+    };
+
     /// <summary>
     /// Gets the human-readable name for a contract index, or null if unknown.
     /// </summary>
-    public static string? GetContractName(int contractIndex) => contractIndex switch
-    {
-        Core => "Core", Qx => "QX", Quottery => "Quottery", Random => "Random",
-        Qutil => "QUtil", Mlm => "MLM", Gqmprop => "GQMProp", Swatch => "Swatch",
-        Ccf => "CCF", Qearn => "QEarn", Qvault => "QVault", Msvault => "MSVault",
-        Qbay => "QBay", Qswap => "QSwap", Nost => "Nostromo", Qdraw => "QDraw",
-        Rl => "RL", Qbond => "QBond", Qip => "QIP", Qraffle => "QRaffle",
-        Qrwa => "QRWA", Qrp => "QRP", Qtf => "QTF", Qduel => "QDuel", _ => null
-    };
+    public static string? GetContractName(int contractIndex) =>
+        _contractNames.GetValueOrDefault(contractIndex);
 
     /// <summary>
     /// Gets formatted contract display string: "NAME (INDEX)" or just "INDEX" if unknown.
@@ -100,6 +104,57 @@ public static class QubicContracts
     {
         var name = GetContractName(contractIndex);
         return name != null ? $"{name} ({contractIndex})" : contractIndex.ToString();
+    }
+
+    /// <summary>
+    /// Returns all known contract indices and their names (excludes Core).
+    /// </summary>
+    public static IReadOnlyList<(int Index, string Name)> GetAllContracts() =>
+        _contractNames.Where(kv => kv.Key != Core).Select(kv => (kv.Key, kv.Value)).ToList();
+
+    /// <summary>
+    /// Contracts that implement TransferShareManagementRights and can thus
+    /// transfer management rights away again. Only these should be valid
+    /// targets when transferring asset management rights.
+    /// </summary>
+    private static readonly HashSet<int> _managementRightsContracts = [Qx, Qbay, Qswap, Nost, Qip, Qraffle];
+
+    /// <summary>
+    /// Returns true if the contract supports transferring management rights away
+    /// (i.e. it has its own TransferShareManagementRights procedure).
+    /// </summary>
+    public static bool SupportsManagementRightsTransfer(int contractIndex) =>
+        _managementRightsContracts.Contains(contractIndex);
+
+    /// <summary>
+    /// Returns contracts that are valid targets for TransferShareManagementRights.
+    /// </summary>
+    public static IReadOnlyList<(int Index, string Name)> GetManagementRightsTargets() =>
+        GetAllContracts().Where(c => SupportsManagementRightsTransfer(c.Index)).ToList();
+
+    /// <summary>
+    /// Creates the correct TransferShareManagementRightsPayload for the given managing contract.
+    /// Each contract has its own payload class with the correct InputType.
+    /// </summary>
+    public static Payloads.ITransactionPayload CreateManagementRightsPayload(
+        int managingContractIndex, Contracts.QubicAsset asset, long shares, uint newContractIndex)
+    {
+        return managingContractIndex switch
+        {
+            Qx => new Contracts.Qx.TransferShareManagementRightsPayload
+                { Asset = asset, NumberOfShares = shares, NewManagingContractIndex = newContractIndex },
+            Qbay => new Contracts.Qbay.TransferShareManagementRightsPayload
+                { Asset = asset, NumberOfShares = shares, NewManagingContractIndex = newContractIndex },
+            Qswap => new Contracts.Qswap.TransferShareManagementRightsPayload
+                { Asset = asset, NumberOfShares = shares, NewManagingContractIndex = newContractIndex },
+            Nost => new Contracts.Nost.TransferShareManagementRightsPayload
+                { Asset = asset, NumberOfShares = shares, NewManagingContractIndex = newContractIndex },
+            Qip => new Contracts.Qip.TransferShareManagementRightsPayload
+                { Asset = asset, NumberOfShares = shares, NewManagingContractIndex = newContractIndex },
+            Qraffle => new Contracts.Qraffle.TransferShareManagementRightsPayload
+                { TokenIssuer = asset.Issuer, TokenName = asset.AssetName, NumberOfShares = shares, NewManagingContractIndex = newContractIndex },
+            _ => throw new ArgumentException($"Contract {managingContractIndex} does not support TransferShareManagementRights")
+        };
     }
 
     /// <summary>

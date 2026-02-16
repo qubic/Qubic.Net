@@ -2,6 +2,7 @@
 @inject QubicSettingsService Cfg
 @inject QubicBackendService Backend
 @inject LabelService Labels
+@inject QubicStaticService StaticData
 
 <h4>Settings</h4>
 <p class="text-muted">Configure Qubic.Net Toolkit behavior.</p>
@@ -199,20 +200,20 @@
                     @if (Cfg.RemoteLabelsEnabled)
                     {
                         <div class="d-flex align-items-center gap-2 mb-2">
-                            <button class="btn btn-outline-primary btn-sm" @onclick="RefreshLabels" disabled="@Labels.IsLoading">
-                                <i class="bi bi-arrow-clockwise me-1"></i>@(Labels.IsLoading ? "Loading..." : "Refresh Labels")
+                            <button class="btn btn-outline-primary btn-sm" @onclick="RefreshLabels" disabled="@StaticData.IsLoading">
+                                <i class="bi bi-arrow-clockwise me-1"></i>@(StaticData.IsLoading ? "Loading..." : "Refresh Labels")
                             </button>
-                            @if (Labels.LastFetched != null)
+                            @if (StaticData.LastFetched != null)
                             {
                                 <span class="text-muted small">
-                                    @Labels.RemoteLabelCount labels loaded at @Labels.LastFetched.Value.ToString("HH:mm:ss")
+                                    @Labels.RemoteLabelCount labels loaded at @StaticData.LastFetched.Value.ToString("HH:mm:ss")
                                 </span>
                             }
                         </div>
 
-                        @if (Labels.LastError != null)
+                        @if (StaticData.LastError != null)
                         {
-                            <div class="alert alert-danger small py-1 mb-0">@Labels.LastError</div>
+                            <div class="alert alert-danger small py-1 mb-0">@StaticData.LastError</div>
                         }
                     }
                 </div>
@@ -303,12 +304,12 @@
         if (Cfg.RemoteLabelsEnabled)
             await RefreshLabels();
         else
-            Labels.ClearRemoteLabels();
+            StaticData.Clear();
     }
 
     private async Task RefreshLabels()
     {
-        await Labels.LoadRemoteLabelsAsync();
+        await StaticData.LoadAsync();
         StateHasChanged();
     }
 }

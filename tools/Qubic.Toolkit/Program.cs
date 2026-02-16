@@ -61,6 +61,7 @@ class Program
         services.AddSingleton<TransactionTrackerService>();
         services.AddSingleton<AssetRegistryService>();
         services.AddSingleton<PeerAutoDiscoverService>();
+        services.AddSingleton<QubicStaticService>();
         services.AddSingleton<LabelService>();
     }
 

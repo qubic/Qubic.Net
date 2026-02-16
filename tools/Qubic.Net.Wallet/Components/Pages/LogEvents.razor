@@ -61,6 +61,7 @@ else
             <table class="table table-sm table-hover">
                 <thead>
                     <tr>
+                        <th>Time</th>
                         <th>Tick</th>
                         <th>Type</th>
                         <th>From</th>
@@ -75,6 +76,7 @@ else
                     {
                         var info = ParseLogInfo(log);
                         <tr>
+                            <td class="small text-nowrap">@(log.Timestamp ?? "—")</td>
                             <td class="mono">@log.Tick.ToString("N0")</td>
                             <td><span class="badge bg-secondary">@(log.LogTypeName ?? $"#{log.LogType}")</span></td>
                             <td>
@@ -106,7 +108,7 @@ else
                         @if (IsExpanded(log.Epoch, log.LogId))
                         {
                             <tr>
-                                <td colspan="7">
+                                <td colspan="8">
                                     <div class="bg-body-secondary rounded p-3">
                                         @{ var detailInfo = ParseLogInfo(log); }
                                         <table class="table table-sm table-borderless mb-0">

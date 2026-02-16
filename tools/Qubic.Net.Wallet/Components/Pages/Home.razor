@@ -87,10 +87,6 @@ else
                                 @StreamIcon(sync.RpcStatus) <strong>RPC:</strong>
                                 <span class="text-muted">@(sync.RpcStatusMessage ?? "Idle")</span>
                             </div>
-                            <div class="mb-1">
-                                @StreamIcon(sync.BobTransferStatus) <strong>Transfers:</strong>
-                                <span class="text-muted">@(sync.BobTransferStatusMessage ?? "Idle")</span>
-                            </div>
                             <div>
                                 @StreamIcon(sync.BobLogStatus) <strong>Logs:</strong>
                                 <span class="text-muted">@(sync.BobLogStatusMessage ?? "Idle")</span>
@@ -114,6 +110,106 @@ else
             </div>
         </div>
     </div>
+
+    @* ── Owned Assets ── *@
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Owned Assets</span>
+            <a class="btn btn-sm btn-outline-primary" href="/assets">View All</a>
+        </div>
+        <div class="card-body">
+            @if (_assetsLoading)
+            {
+                <span class="text-muted"><span class="spinner-border spinner-border-sm me-1"></span> Loading assets...</span>
+            }
+            else if (_ownedAssets != null && _ownedAssets.Count > 0)
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr><th>Asset</th><th>Shares</th><th>Contract</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var a in _ownedAssets)
+                            {
+                                <tr>
+                                    <td class="mono">@(a.Data.IssuedAsset?.Name ?? "?")</td>
+                                    <td class="mono">@a.Data.NumberOfUnits</td>
+                                    <td>@Qubic.Core.QubicContracts.FormatContract((int)a.Data.ManagingContractIndex)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else if (_assetsError != null)
+            {
+                <span class="text-danger small">@_assetsError</span>
+            }
+            else
+            {
+                <span class="text-muted">No owned assets.</span>
+            }
+        </div>
+    </div>
+
+    @* ── Open QX Orders ── *@
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Open QX Orders</span>
+            <a class="btn btn-sm btn-outline-primary" href="/qx">View All</a>
+        </div>
+        <div class="card-body">
+            @if (_ordersLoading)
+            {
+                <span class="text-muted"><span class="spinner-border spinner-border-sm me-1"></span> Loading orders...</span>
+            }
+            else if ((_askOrders != null && _askOrders.Count > 0) || (_bidOrders != null && _bidOrders.Count > 0))
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr><th>Type</th><th>Asset</th><th>Price</th><th>Shares</th></tr>
+                        </thead>
+                        <tbody>
+                            @if (_askOrders != null)
+                            {
+                                @foreach (var o in _askOrders)
+                                {
+                                    <tr>
+                                        <td><span class="badge-qb-danger">Ask</span></td>
+                                        <td class="mono">@(Qubic.Core.AssetNameHelper.FromUlong(o.AssetName) ?? "?")</td>
+                                        <td class="mono">@o.Price.ToString("N0")</td>
+                                        <td class="mono">@o.NumberOfShares.ToString("N0")</td>
+                                    </tr>
+                                }
+                            }
+                            @if (_bidOrders != null)
+                            {
+                                @foreach (var o in _bidOrders)
+                                {
+                                    <tr>
+                                        <td><span class="badge-qb-success">Bid</span></td>
+                                        <td class="mono">@(Qubic.Core.AssetNameHelper.FromUlong(o.AssetName) ?? "?")</td>
+                                        <td class="mono">@o.Price.ToString("N0")</td>
+                                        <td class="mono">@o.NumberOfShares.ToString("N0")</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else if (_ordersError != null)
+            {
+                <span class="text-danger small">@_ordersError</span>
+            }
+            else
+            {
+                <span class="text-muted">No open orders.</span>
+            }
+        </div>
+    </div>
 }
 
 @code {
@@ -122,6 +218,17 @@ else
     private string? _balanceError;
     private bool _disposed;
 
+    // Owned assets
+    private IReadOnlyList<Qubic.Rpc.Models.OwnedAssetInfo>? _ownedAssets;
+    private bool _assetsLoading;
+    private string? _assetsError;
+
+    // QX orders
+    private List<Qubic.Core.Contracts.Qx.EntityAskOrdersOrder>? _askOrders;
+    private List<Qubic.Core.Contracts.Qx.EntityBidOrdersOrder>? _bidOrders;
+    private bool _ordersLoading;
+    private string? _ordersError;
+
     protected override async Task OnInitializedAsync()
     {
         TickMonitor.OnTickChanged += OnTickChanged;
@@ -129,7 +236,12 @@ else
         WalletStorage.Sync.OnSyncStateChanged += OnSyncChanged;
 
         if (Seed.HasSeed)
-            await LoadBalance();
+        {
+            var balanceTask = LoadBalance();
+            var assetsTask = LoadAssets();
+            var ordersTask = LoadOrders();
+            await Task.WhenAll(balanceTask, assetsTask, ordersTask);
+        }
     }
 
     private void OnTickChanged()
@@ -152,8 +264,18 @@ else
             if (_disposed) return;
             _balance = null;
             _balanceError = null;
+            _ownedAssets = null;
+            _assetsError = null;
+            _askOrders = null;
+            _bidOrders = null;
+            _ordersError = null;
             if (Seed.HasSeed)
-                await LoadBalance();
+            {
+                var t1 = LoadBalance();
+                var t2 = LoadAssets();
+                var t3 = LoadOrders();
+                await Task.WhenAll(t1, t2, t3);
+            }
             StateHasChanged();
         });
     }
@@ -176,6 +298,65 @@ else
         finally
         {
             _balanceLoading = false;
+        }
+    }
+
+    private async Task LoadAssets()
+    {
+        if (!Seed.HasSeed || Seed.Identity == null) return;
+        _assetsLoading = true;
+        _assetsError = null;
+        try
+        {
+            _ownedAssets = await Backend.GetOwnedAssetsAsync(Seed.Identity.Value);
+        }
+        catch (Exception ex)
+        {
+            _assetsError = ex.Message;
+        }
+        finally
+        {
+            _assetsLoading = false;
+        }
+    }
+
+    private async Task LoadOrders()
+    {
+        if (!Seed.HasSeed || Seed.Identity == null) return;
+        _ordersLoading = true;
+        _ordersError = null;
+        try
+        {
+            var pk = Seed.Identity.Value.PublicKey;
+
+            var askInput = new Qubic.Core.Contracts.Qx.EntityAskOrdersInput { Entity = pk, Offset = 0 }.ToBytes();
+            var bidInput = new Qubic.Core.Contracts.Qx.EntityBidOrdersInput { Entity = pk, Offset = 0 }.ToBytes();
+
+            var askTask = Backend.QuerySmartContractAsync(1, 4, askInput);
+            var bidTask = Backend.QuerySmartContractAsync(1, 5, bidInput);
+            await Task.WhenAll(askTask, bidTask);
+
+            var askResult = askTask.Result;
+            if (askResult.Length >= Qubic.Core.Contracts.Qx.EntityAskOrdersOrder.Size)
+            {
+                var output = Qubic.Core.Contracts.Qx.EntityAskOrdersOutput.FromBytes(askResult);
+                _askOrders = output.Orders.Where(o => o.NumberOfShares > 0).ToList();
+            }
+
+            var bidResult = bidTask.Result;
+            if (bidResult.Length >= Qubic.Core.Contracts.Qx.EntityBidOrdersOrder.Size)
+            {
+                var output = Qubic.Core.Contracts.Qx.EntityBidOrdersOutput.FromBytes(bidResult);
+                _bidOrders = output.Orders.Where(o => o.NumberOfShares > 0).ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            _ordersError = ex.Message;
+        }
+        finally
+        {
+            _ordersLoading = false;
         }
     }
 

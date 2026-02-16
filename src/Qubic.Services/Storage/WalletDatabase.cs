@@ -312,6 +312,11 @@ public sealed class WalletDatabase : IDisposable
                 break;
         }
 
+        if (query.HashType == TxHashType.User)
+            sb.Append(" AND length(hash)=60 AND hash NOT GLOB '*[^a-z]*'");
+        else if (query.HashType == TxHashType.System)
+            sb.Append(" AND NOT (length(hash)=60 AND hash NOT GLOB '*[^a-z]*')");
+
         if (query.MinTick.HasValue) { sb.Append(" AND tick>=@mint"); parms.Add(("@mint", (long)query.MinTick.Value)); }
         if (query.MaxTick.HasValue) { sb.Append(" AND tick<=@maxt"); parms.Add(("@maxt", (long)query.MaxTick.Value)); }
         if (query.InputType.HasValue) { sb.Append(" AND input_type=@it"); parms.Add(("@it", (long)query.InputType.Value)); }

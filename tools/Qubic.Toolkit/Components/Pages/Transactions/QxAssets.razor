@@ -122,8 +122,13 @@ else
                                 <input type="number" class="form-control form-control-sm" @bind="_rightsShares" />
                             </div>
                             <div class="mb-2">
-                                <label class="form-label-sm">New Managing Contract Index</label>
-                                <input type="number" class="form-control form-control-sm" min="0" @bind="_rightsContractIndex" />
+                                <label class="form-label-sm">New Managing Contract</label>
+                                <select class="form-select form-select-sm" @bind="_rightsContractIndex">
+                                    @foreach (var c in Qubic.Core.QubicContracts.GetManagementRightsTargets())
+                                    {
+                                        <option value="@c.Index">@c.Name (@c.Index)</option>
+                                    }
+                                </select>
                             </div>
                             <button class="btn btn-primary" @onclick="TransferRights" disabled="@_sending">
                                 @(_sending ? "Transferring..." : "Transfer Rights")

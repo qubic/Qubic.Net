@@ -581,6 +581,13 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--qb-accent-cyan) !important;
 }
 
+/* ── Accent Card Header ── */
+.card-header-accent {
+    background: rgba(35, 255, 255, 0.12);
+    color: var(--qb-accent-cyan);
+    border-bottom-color: var(--qb-border-strong);
+}
+
 /* ── Address Display ── */
 .address-label {
     font-weight: 600;
