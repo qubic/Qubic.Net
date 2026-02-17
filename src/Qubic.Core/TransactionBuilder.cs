@@ -69,14 +69,13 @@ public sealed class TransactionBuilder : ITransactionBuilder
         var unsignedBytes = BuildUnsignedTransactionBytes(transaction);
 
         // Sign the transaction
-        var signedMessage = _crypt.Sign(seed, unsignedBytes);
+        var signature = _crypt.Sign(seed, unsignedBytes);
 
-        // Extract signature (last 64 bytes)
-        var signature = new byte[64];
-        Array.Copy(signedMessage, signedMessage.Length - 64, signature, 0, 64);
-
-        // Compute transaction hash
-        var hash = _crypt.GetHumanReadableBytes(_crypt.KangarooTwelve(signedMessage));
+        // Compute transaction hash (K12 of unsigned bytes + signature)
+        var signedBytes = new byte[unsignedBytes.Length + 64];
+        unsignedBytes.CopyTo(signedBytes, 0);
+        signature.CopyTo(signedBytes, unsignedBytes.Length);
+        var hash = _crypt.GetHumanReadableBytes(_crypt.KangarooTwelve(signedBytes));
 
         transaction.SetSignature(signature, hash);
     }

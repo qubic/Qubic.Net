@@ -53,7 +53,7 @@ public interface IQubicCrypt
     string GetHumanReadableBytes(byte[] data);
 
     /// <summary>
-    /// Signs a message using the seed. Returns message with signature appended.
+    /// Signs a message using the seed. Returns the 64-byte signature.
     /// Uses the qubic protocol convention (K12 digest in nonce/challenge inputs).
     /// </summary>
     byte[] Sign(string seed, byte[] message);
@@ -65,11 +65,6 @@ public interface IQubicCrypt
     /// Returns only the 64-byte signature.
     /// </summary>
     byte[] SignRaw(string seed, byte[] message);
-
-    /// <summary>
-    /// Verifies a message where signature is the last 64 bytes.
-    /// </summary>
-    bool Verify(byte[] publicKey, byte[] message);
 
     /// <summary>
     /// Verifies a message with separate signature.

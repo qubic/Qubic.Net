@@ -148,7 +148,7 @@ public class QubicCrypt : IQubicCrypt
     }
 
     /// <summary>
-    /// Signs a message using the seed. Returns signature appended to message.
+    /// Signs a message using the seed. Returns the 64-byte signature.
     /// Uses the qubic protocol convention (K12 digest used in nonce/challenge inputs).
     /// </summary>
     public byte[] Sign(string seed, byte[] message)
@@ -158,13 +158,7 @@ public class QubicCrypt : IQubicCrypt
 
         var subSeed = SchnorrQ.GetSubSeedFromSeed(seed);
         var publicKey = SchnorrQ.GeneratePublicKey(subSeed);
-        var signature = SchnorrQ.SignMessage(subSeed, publicKey, message);
-
-        // Return message with signature appended
-        var result = new byte[message.Length + 64];
-        message.CopyTo(result, 0);
-        signature.CopyTo(result, message.Length);
-        return result;
+        return SchnorrQ.SignMessage(subSeed, publicKey, message);
     }
 
     /// <summary>
@@ -181,24 +175,6 @@ public class QubicCrypt : IQubicCrypt
         var subSeed = SchnorrQ.GetSubSeedFromSeed(seed);
         var publicKey = SchnorrQ.GeneratePublicKey(subSeed);
         return SchnorrQ.SignRaw(subSeed, publicKey, message);
-    }
-
-    /// <summary>
-    /// Verifies a message where signature is the last 64 bytes.
-    /// Uses the qubic protocol convention (K12 digest used in challenge).
-    /// </summary>
-    public bool Verify(byte[] publicKey, byte[] message)
-    {
-        if (publicKey == null || publicKey.Length != 32)
-            return false;
-        if (message == null || message.Length < 64)
-            return false;
-
-        var messageContent = message.AsSpan(0, message.Length - 64);
-        var signature = message.AsSpan(message.Length - 64, 64);
-
-        var digest = K12.Hash(messageContent, 32);
-        return SchnorrQ.Verify(publicKey, digest, signature);
     }
 
     /// <summary>

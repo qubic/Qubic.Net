@@ -121,40 +121,24 @@ public class QubicCryptTests
     }
 
     [Fact]
-    public void Sign_AppendsSignatureToMessage()
+    public void Sign_Returns64ByteSignature()
     {
         var seed = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabc";
         var message = new byte[] { 0x01, 0x02, 0x03, 0x04 };
 
-        var signedMessage = _crypt.Sign(seed, message);
+        var signature = _crypt.Sign(seed, message);
 
-        Assert.Equal(message.Length + 64, signedMessage.Length);
-        Assert.Equal(message, signedMessage.AsSpan(0, message.Length).ToArray());
+        Assert.Equal(64, signature.Length);
     }
 
     [Fact]
-    public void Verify_WithSignatureInMessage_Works()
+    public void Sign_And_Verify_Works()
     {
         var seed = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabc";
         var publicKey = _crypt.GetPublicKey(seed);
         var message = new byte[] { 0x01, 0x02, 0x03, 0x04 };
 
-        var signedMessage = _crypt.Sign(seed, message);
-        var isValid = _crypt.Verify(publicKey, signedMessage);
-
-        Assert.True(isValid);
-    }
-
-    [Fact]
-    public void Verify_WithSeparateSignature_Works()
-    {
-        var seed = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabc";
-        var publicKey = _crypt.GetPublicKey(seed);
-        var message = new byte[] { 0x01, 0x02, 0x03, 0x04 };
-
-        var signedMessage = _crypt.Sign(seed, message);
-        var signature = signedMessage.AsSpan(message.Length, 64).ToArray();
-
+        var signature = _crypt.Sign(seed, message);
         var isValid = _crypt.Verify(publicKey, message, signature);
 
         Assert.True(isValid);
@@ -167,10 +151,10 @@ public class QubicCryptTests
         var publicKey = _crypt.GetPublicKey(seed);
         var message = new byte[] { 0x01, 0x02, 0x03, 0x04 };
 
-        var signedMessage = _crypt.Sign(seed, message);
-        signedMessage[0] ^= 0xFF; // Modify message
+        var signature = _crypt.Sign(seed, message);
+        message[0] ^= 0xFF; // Modify message
 
-        var isValid = _crypt.Verify(publicKey, signedMessage);
+        var isValid = _crypt.Verify(publicKey, message, signature);
 
         Assert.False(isValid);
     }
@@ -215,8 +199,10 @@ public class QubicCryptTests
         var identity = "UGQLSPXWWQORKDDJNOQVYRPYPWKDYLBCTOJCQTPRJFUXGTQXJAVACKSDDNMA";
         var publicKey = _crypt.GetPublicKeyFromIdentity(identity);
         var signedPacket = Convert.FromBase64String("SGFsbG9w3PrF3AvP1/epGGEbt79ZtwuDUP1UrxUKQSxw8Un31EKICNOIoqmuC9W/52M8Xg5islHGdAuPwOCS3OBjHwgA");
+        var message = signedPacket.AsSpan(0, signedPacket.Length - 64).ToArray();
+        var signature = signedPacket.AsSpan(signedPacket.Length - 64, 64).ToArray();
 
-        var isValid = _crypt.Verify(publicKey, signedPacket);
+        var isValid = _crypt.Verify(publicKey, message, signature);
 
         Assert.True(isValid);
     }
@@ -232,8 +218,10 @@ public class QubicCryptTests
 
         var publicKey = _crypt.GetPublicKeyFromIdentity(identity);
         var signedMessage = Convert.FromHexString(messageHex);
+        var message = signedMessage.AsSpan(0, signedMessage.Length - 64).ToArray();
+        var signature = signedMessage.AsSpan(signedMessage.Length - 64, 64).ToArray();
 
-        var isValid = _crypt.Verify(publicKey, signedMessage);
+        var isValid = _crypt.Verify(publicKey, message, signature);
 
         Assert.True(isValid);
     }
@@ -273,8 +261,7 @@ public class QubicCryptTests
 
         // Sign
         var publicKey = _crypt.GetPublicKey(seed);
-        var signedMsg = _crypt.Sign(seed, messageBytes);
-        var signature = signedMsg.AsSpan(messageBytes.Length, 64).ToArray();
+        var signature = _crypt.Sign(seed, messageBytes);
 
         // Encode as shifted hex + K12 checksum (130 chars)
         var checksum = _crypt.KangarooTwelve(signature, 1);
@@ -309,8 +296,7 @@ public class QubicCryptTests
         var messageBytes = System.Text.Encoding.UTF8.GetBytes(message);
 
         var publicKey = _crypt.GetPublicKey(seed);
-        var signedMsg = _crypt.Sign(seed, messageBytes);
-        var signature = signedMsg.AsSpan(messageBytes.Length, 64).ToArray();
+        var signature = _crypt.Sign(seed, messageBytes);
 
         // Verify via reference pattern: pre-hash then SchnorrQ.Verify directly
         var messageDigest = _crypt.KangarooTwelve(messageBytes);

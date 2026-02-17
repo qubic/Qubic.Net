@@ -34,12 +34,6 @@ public sealed class SeedSigner : IQubicSigner
     public byte[] Sign(byte[] messageDigest)
     {
         ArgumentNullException.ThrowIfNull(messageDigest);
-
-        var signedMessage = _crypt.Sign(_seed, messageDigest);
-
-        // Extract just the signature (last 64 bytes)
-        var signature = new byte[64];
-        Array.Copy(signedMessage, signedMessage.Length - 64, signature, 0, 64);
-        return signature;
+        return _crypt.Sign(_seed, messageDigest);
     }
 }

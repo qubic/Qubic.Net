@@ -64,10 +64,7 @@ public class SeedSessionService
     public byte[] SignMessage(byte[] message)
     {
         EnsureSeed();
-        var signed = _crypt.Sign(_seed!, message);
-        var signature = new byte[64];
-        Array.Copy(signed, signed.Length - 64, signature, 0, 64);
-        return signature;
+        return _crypt.Sign(_seed!, message);
     }
 
     public byte[] SignRawMessage(byte[] message)
