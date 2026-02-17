@@ -223,6 +223,15 @@ public sealed class QubicSettingsService
             if (data != null) _data = data;
         }
         catch { /* corrupted file, use defaults */ }
+
+        // Migrate retired Bob URL (exact match only)
+        if (Uri.TryCreate(_data.BobUrl, UriKind.Absolute, out var bobUri)
+            && bobUri.Host.Equals("bob.qubic.li", StringComparison.OrdinalIgnoreCase))
+        {
+            var builder = new UriBuilder(bobUri) { Host = "bobnet.qubic.li" };
+            _data.BobUrl = builder.Uri.ToString().TrimEnd('/');
+            SaveToDisk();
+        }
     }
 
     private sealed class SettingsData
@@ -232,7 +241,7 @@ public sealed class QubicSettingsService
         public int AutoResendMaxRetries { get; set; } = 3;
         public string DefaultBackend { get; set; } = "Rpc";
         public string RpcUrl { get; set; } = "https://rpc.qubic.org";
-        public string BobUrl { get; set; } = "https://bob.qubic.li";
+        public string BobUrl { get; set; } = "https://bobnet.qubic.li";
         public string NodeHost { get; set; } = "corenet.qubic.li";
         public int NodePort { get; set; } = 21841;
         public bool? ExtendedServicesConfigured { get; set; }
