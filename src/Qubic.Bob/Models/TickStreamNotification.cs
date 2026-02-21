@@ -14,23 +14,32 @@ public sealed class TickStreamNotification
     [JsonPropertyName("tick")]
     public uint Tick { get; set; }
 
+    [JsonPropertyName("computorIndex")]
+    public int ComputorIndex { get; set; }
+
+    [JsonPropertyName("hasNoTickData")]
+    public bool HasNoTickData { get; set; }
+
+    [JsonPropertyName("isSkipped")]
+    public bool IsSkipped { get; set; }
+
     [JsonPropertyName("isCatchUp")]
     public bool IsCatchUp { get; set; }
 
     [JsonPropertyName("timestamp")]
     public string? Timestamp { get; set; }
 
-    [JsonPropertyName("txCountFiltered")]
-    public uint TxCountFiltered { get; set; }
-
-    [JsonPropertyName("txCountTotal")]
+    [JsonPropertyName("totalTxs")]
     public uint TxCountTotal { get; set; }
 
-    [JsonPropertyName("logCountFiltered")]
-    public uint LogCountFiltered { get; set; }
+    [JsonPropertyName("filteredTxs")]
+    public uint TxCountFiltered { get; set; }
 
-    [JsonPropertyName("logCountTotal")]
+    [JsonPropertyName("totalLogs")]
     public uint LogCountTotal { get; set; }
+
+    [JsonPropertyName("filteredLogs")]
+    public uint LogCountFiltered { get; set; }
 
     [JsonPropertyName("transactions")]
     public List<TickStreamTransaction>? Transactions { get; set; }
@@ -58,6 +67,9 @@ public sealed class TickStreamTransaction
 
     [JsonPropertyName("inputType")]
     public ushort InputType { get; set; }
+
+    [JsonPropertyName("inputSize")]
+    public int InputSize { get; set; }
 
     [JsonPropertyName("inputData")]
     public string? InputData { get; set; }
