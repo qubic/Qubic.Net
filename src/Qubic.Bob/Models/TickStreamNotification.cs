@@ -26,8 +26,30 @@ public sealed class TickStreamNotification
     [JsonPropertyName("isCatchUp")]
     public bool IsCatchUp { get; set; }
 
+    /// <summary>
+    /// Timestamp as a raw JsonElement — Bob may send this as a string (ISO 8601)
+    /// or as a number (Unix epoch seconds). Use <see cref="Timestamp"/> for a string value.
+    /// </summary>
     [JsonPropertyName("timestamp")]
-    public string? Timestamp { get; set; }
+    public JsonElement? TimestampRaw { get; set; }
+
+    /// <summary>
+    /// Gets the timestamp as a string, handling both string and numeric formats.
+    /// </summary>
+    [JsonIgnore]
+    public string? Timestamp
+    {
+        get
+        {
+            if (!TimestampRaw.HasValue) return null;
+            return TimestampRaw.Value.ValueKind switch
+            {
+                JsonValueKind.String => TimestampRaw.Value.GetString(),
+                JsonValueKind.Number => TimestampRaw.Value.GetInt64().ToString(),
+                _ => null
+            };
+        }
+    }
 
     [JsonPropertyName("totalTxs")]
     public uint TxCountTotal { get; set; }
@@ -125,8 +147,30 @@ public sealed class TickStreamLog
     [JsonPropertyName("bodySize")]
     public int BodySize { get; set; }
 
+    /// <summary>
+    /// Timestamp as a raw JsonElement — Bob may send this as a string (ISO 8601)
+    /// or as a number (Unix epoch seconds). Use <see cref="GetTimestamp"/> for parsing.
+    /// </summary>
     [JsonPropertyName("timestamp")]
-    public string? Timestamp { get; set; }
+    public JsonElement? TimestampRaw { get; set; }
+
+    /// <summary>
+    /// Gets the timestamp as a string, handling both string and numeric formats.
+    /// </summary>
+    [JsonIgnore]
+    public string? Timestamp
+    {
+        get
+        {
+            if (!TimestampRaw.HasValue) return null;
+            return TimestampRaw.Value.ValueKind switch
+            {
+                JsonValueKind.String => TimestampRaw.Value.GetString(),
+                JsonValueKind.Number => TimestampRaw.Value.GetInt64().ToString(),
+                _ => null
+            };
+        }
+    }
 
     [JsonPropertyName("txHash")]
     public string? TxHash { get; set; }
