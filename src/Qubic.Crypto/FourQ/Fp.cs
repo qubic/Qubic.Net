@@ -34,14 +34,14 @@ public readonly struct Fp : IEquatable<Fp>
         var result = a;
         while (result < 0)
             result += P;
-        while (result >= P)
+        while (result > P)
         {
             var high = result >> 127;
             var low = result & P;
             result = high + low;
         }
-        if (result >= P)
-            result -= P;
+        if (result == P)
+            result = BigInteger.Zero;
         return result;
     }
 

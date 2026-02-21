@@ -32,6 +32,44 @@ public class FourQTests
     }
 
     [Fact]
+    public void Fp_ModularReduction_PReducesToZero()
+    {
+        // P mod P should be 0 (regression: previously caused infinite loop)
+        var p = new Fp(Fp.P);
+        Assert.Equal(BigInteger.Zero, p.Value);
+    }
+
+    [Fact]
+    public void Fp_ModularReduction_MultiplesOfP_ReduceToZero()
+    {
+        var twoP = new Fp(Fp.P * 2);
+        Assert.Equal(BigInteger.Zero, twoP.Value);
+
+        var threeP = new Fp(Fp.P * 3);
+        Assert.Equal(BigInteger.Zero, threeP.Value);
+    }
+
+    [Fact]
+    public void Fp_Div2_OfP_IsZero()
+    {
+        // Div2 of P should produce 0 (since P ≡ 0 mod P)
+        // This was the exact trigger for the infinite loop bug
+        var p = new Fp(Fp.P);
+        var half = p.Div2();
+        Assert.Equal(BigInteger.Zero, half.Value);
+    }
+
+    [Fact]
+    public void Fp_Addition_ResultEqualsP_ReducesToZero()
+    {
+        // (P-1) + 1 = P should reduce to 0
+        var a = new Fp(Fp.P - 1);
+        var b = Fp.One;
+        var sum = a + b;
+        Assert.Equal(BigInteger.Zero, sum.Value);
+    }
+
+    [Fact]
     public void Fp_Inverse_Works()
     {
         var a = new Fp(BigInteger.Parse("42"));
@@ -165,6 +203,21 @@ public class FourQTests
 
         Assert.NotNull(decoded);
         Assert.Equal(FourQPoint.BasePoint, decoded.Value);
+    }
+
+    [Fact]
+    public void Point_DecodeZeroBytes_DoesNotHang()
+    {
+        // Decoding an all-zero 32-byte public key should complete (not hang)
+        // This triggered the Fp.Mod infinite loop before the fix
+        var zeroKey = new byte[32];
+        var decoded = FourQCodec.Decode(zeroKey);
+
+        // The point may or may not be valid, but Decode must terminate
+        if (decoded != null)
+        {
+            Assert.True(FourQPoint.IsOnCurve(decoded.Value));
+        }
     }
 
     [Fact]

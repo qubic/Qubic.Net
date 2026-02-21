@@ -321,4 +321,62 @@ public class QubicCryptTests
         var isValid = _crypt.VerifyRaw(pubKey, messageBytes, signature);
         Assert.True(isValid, "JS-generated signature should verify with VerifyRaw");
     }
+
+    [Fact]
+    public void SignVerify_ZeroSeed_Works()
+    {
+        // Zero seed (all 'a') - tests the degenerate key path
+        var seed = new string('a', 55);
+        var message = new byte[] { 0x01, 0x02, 0x03, 0x04 };
+
+        var publicKey = _crypt.GetPublicKey(seed);
+        var signature = _crypt.Sign(seed, message);
+
+        Assert.Equal(64, signature.Length);
+
+        var isValid = _crypt.Verify(publicKey, message, signature);
+        Assert.True(isValid, "Zero seed sign/verify should succeed");
+    }
+
+    [Fact]
+    public void Verify_ZeroPublicKey_DoesNotHang()
+    {
+        // Regression test: all-zero public key previously caused infinite loop
+        // in Fp.Mod due to Mersenne reduction when result == P
+        var zeroKey = new byte[32];
+        var message = new byte[] { 0x01, 0x02, 0x03 };
+        var signature = new byte[64];
+
+        // Should return false (invalid), not hang
+        var isValid = _crypt.Verify(zeroKey, message, signature);
+        Assert.False(isValid);
+    }
+
+    [Fact]
+    public void Verify_ZeroPublicKey_WithRealSignature_ReturnsFalse()
+    {
+        // Sign with a real seed, then verify with all-zero public key
+        var seed = new string('a', 55);
+        var message = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
+
+        var signature = _crypt.Sign(seed, message);
+
+        // Verify with wrong (zero) public key should return false, not hang
+        var isValid = _crypt.Verify(new byte[32], message, signature);
+        Assert.False(isValid);
+    }
+
+    [Fact]
+    public void SignVerify_ZeroSeed_IdentityRoundTrip()
+    {
+        var seed = new string('a', 55);
+
+        var publicKey = _crypt.GetPublicKey(seed);
+        var identity = _crypt.GetIdentityFromPublicKey(publicKey);
+
+        Assert.Equal(60, identity.Length);
+
+        var recoveredKey = _crypt.GetPublicKeyFromIdentity(identity);
+        Assert.Equal(publicKey, recoveredKey);
+    }
 }
