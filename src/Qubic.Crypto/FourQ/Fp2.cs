@@ -70,8 +70,8 @@ public readonly struct Fp2 : IEquatable<Fp2>
     {
         var a2 = A.Square();
         var b2 = B.Square();
-        var ab2 = (A * B).Div2(); // Actually want 2ab, so compute (a*b) then double
-        var twoAb = A * B + A * B; // 2ab
+        var ab = A * B;
+        var twoAb = ab + ab; // 2ab via addition (cheaper than redundant multiply)
         return new Fp2(a2 - b2, twoAb);
     }
 

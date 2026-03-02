@@ -1,4 +1,5 @@
 using System;
+using System.Buffers.Binary;
 using System.Linq;
 using Qubic.Crypto.FourQ;
 
@@ -97,6 +98,87 @@ public class QubicCrypt : IQubicCrypt
     {
         var subSeed = SchnorrQ.GetSubSeedFromSeed(seed);
         return SchnorrQ.GeneratePublicKey(subSeed);
+    }
+
+    /// <summary>
+    /// Gets the 32-byte public key from a 55-character seed into a pre-allocated buffer.
+    /// </summary>
+    public void GetPublicKey(string seed, Span<byte> publicKey)
+    {
+        Span<byte> subSeed = stackalloc byte[32];
+        SchnorrQ.GetSubSeedFromSeed(seed, subSeed);
+        SchnorrQ.GeneratePublicKey(subSeed, publicKey);
+    }
+
+    /// <summary>
+    /// Gets the 60-character identity directly from a 55-character seed.
+    /// Combined operation that avoids intermediate allocations.
+    /// </summary>
+    public string GetIdentityFromSeed(string seed)
+    {
+        var publicKey = GetPublicKey(seed);
+        return GetIdentityFromPublicKey(publicKey);
+    }
+
+    /// <summary>
+    /// Gets the 60-character identity from a seed into a pre-allocated char buffer.
+    /// Zero-allocation on the output path — ideal for vanity address mining loops.
+    /// </summary>
+    public void GetIdentityFromSeed(string seed, Span<char> identity)
+    {
+        Span<byte> publicKey = stackalloc byte[32];
+        GetPublicKey(seed, publicKey);
+        GetIdentityFromPublicKey((ReadOnlySpan<byte>)publicKey, identity);
+    }
+
+    /// <summary>
+    /// Gets the 60-character identity from a seed (as ReadOnlySpan) into a pre-allocated char buffer.
+    /// Fully zero-allocation — ideal for tight vanity address mining loops.
+    /// </summary>
+    public void GetIdentityFromSeed(ReadOnlySpan<char> seed, Span<char> identity)
+    {
+        Span<byte> subSeed = stackalloc byte[32];
+        SchnorrQ.GetSubSeedFromSeed(seed, subSeed);
+
+        Span<byte> publicKey = stackalloc byte[32];
+        SchnorrQ.GeneratePublicKey(subSeed, publicKey);
+
+        GetIdentityFromPublicKey((ReadOnlySpan<byte>)publicKey, identity);
+    }
+
+    /// <summary>
+    /// Converts a 32-byte public key to a 60-character Qubic identity into a pre-allocated buffer.
+    /// </summary>
+    public void GetIdentityFromPublicKey(ReadOnlySpan<byte> publicKey, Span<char> identity)
+    {
+        if (publicKey.Length < 32)
+            throw new ArgumentException("Public key must be at least 32 bytes", nameof(publicKey));
+        if (identity.Length < 60)
+            throw new ArgumentException("Identity buffer must be at least 60 chars", nameof(identity));
+
+        // Convert each 8-byte chunk to 14 base-26 characters
+        for (int i = 0; i < 4; i++)
+        {
+            ulong publicKeyFragment = BinaryPrimitives.ReadUInt64LittleEndian(publicKey.Slice(i * 8));
+            for (int j = 0; j < 14; j++)
+            {
+                identity[i * 14 + j] = (char)((publicKeyFragment % 26) + 'A');
+                publicKeyFragment /= 26;
+            }
+        }
+
+        // Compute checksum: K12 hash of public key, take 3 bytes (18 bits used)
+        Span<byte> checksumBytes = stackalloc byte[3];
+        K12.Hash(publicKey.Slice(0, 32), checksumBytes);
+        uint checksum = (uint)(checksumBytes[0] | (checksumBytes[1] << 8) | (checksumBytes[2] << 16));
+        checksum &= 0x3FFFF; // 18 bits
+
+        // Convert checksum to 4 base-26 characters
+        for (int i = 0; i < 4; i++)
+        {
+            identity[56 + i] = (char)((checksum % 26) + 'A');
+            checksum /= 26;
+        }
     }
 
     /// <summary>

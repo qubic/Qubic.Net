@@ -61,6 +61,30 @@ public static class SchnorrQ
     }
 
     /// <summary>
+    /// Generates a subSeed from a seed and writes it into the provided buffer (zero-alloc).
+    /// </summary>
+    /// <param name="seed">55-character lowercase seed string (a-z only)</param>
+    /// <param name="output">32-byte output buffer</param>
+    public static void GetSubSeedFromSeed(ReadOnlySpan<char> seed, Span<byte> output)
+    {
+        if (seed.Length != 55)
+            throw new ArgumentException("Seed must be exactly 55 characters", nameof(seed));
+        if (output.Length < 32)
+            throw new ArgumentException("Output must be at least 32 bytes", nameof(output));
+
+        Span<byte> seedBytes = stackalloc byte[55];
+        for (int i = 0; i < 55; i++)
+        {
+            char c = seed[i];
+            if (c < 'a' || c > 'z')
+                throw new ArgumentException("Seed must contain only lowercase letters a-z", nameof(seed));
+            seedBytes[i] = (byte)(c - 'a');
+        }
+
+        K12.Hash(seedBytes, output.Slice(0, 32));
+    }
+
+    /// <summary>
     /// Generates a private key (scalar) from a 32-byte seed (subSeed in Qubic terminology).
     /// The private key is the first 32 bytes of K12(subSeed, 64) reduced mod curve order.
     /// </summary>
@@ -102,6 +126,31 @@ public static class SchnorrQ
 
         // Encode the public key
         return FourQCodec.Encode(publicPoint);
+    }
+
+    /// <summary>
+    /// Generates a public key from a 32-byte seed and writes it into the provided buffer (zero-alloc output).
+    /// </summary>
+    /// <param name="subSeed">32-byte seed/secret</param>
+    /// <param name="output">32-byte output buffer for the encoded public key</param>
+    public static void GeneratePublicKey(ReadOnlySpan<byte> subSeed, Span<byte> output)
+    {
+        if (subSeed.Length != 32)
+            throw new ArgumentException("SubSeed must be exactly 32 bytes", nameof(subSeed));
+        if (output.Length < 32)
+            throw new ArgumentException("Output must be at least 32 bytes", nameof(output));
+
+        // Hash the seed with K12 to get 64 bytes
+        var hash = K12.Hash(subSeed, 64);
+
+        // Take first 32 bytes and reduce mod curve order to get scalar
+        var scalar = ScalarField.FromBytes32LE(hash.AsSpan(0, 32));
+
+        // Compute public key: P = scalar * G
+        var publicPoint = FourQPoint.ScalarMul(FourQPoint.BasePoint, scalar);
+
+        // Encode the public key into output buffer
+        FourQCodec.Encode(publicPoint, output);
     }
 
     /// <summary>

@@ -187,6 +187,7 @@ public static class FourQPoint
 
     /// <summary>
     /// Scalar multiplication using double-and-add.
+    /// Iterates over pre-serialized byte array to avoid BigInteger allocations in the loop.
     /// </summary>
     public static PointExt ScalarMul(PointExt p, BigInteger n)
     {
@@ -199,17 +200,21 @@ public static class FourQPoint
             p = Negate(p);
         }
 
+        // Convert scalar to bytes once, then iterate over bits directly
+        var scalarBytes = n.ToByteArray(isUnsigned: true, isBigEndian: false);
+
         var result = PointExt.Identity;
         var current = p;
 
-        while (n > 0)
+        for (int byteIdx = 0; byteIdx < scalarBytes.Length; byteIdx++)
         {
-            if (!n.IsEven)
+            byte b = scalarBytes[byteIdx];
+            for (int bit = 0; bit < 8; bit++)
             {
-                result = Add(result, current);
+                if ((b & (1 << bit)) != 0)
+                    result = Add(result, current);
+                current = Double(current);
             }
-            current = Double(current);
-            n >>= 1;
         }
 
         return result;
@@ -236,8 +241,7 @@ public static class FourQPoint
     public static int GetXSign(Fp2 x)
     {
         // Sign is bit 126 of x.a, or x.b if x.a == 0
-        var component = x.A.Value == 0 ? x.B.Value : x.A.Value;
-        var bit126 = (component >> 126) & 1;
-        return (int)bit126;
+        var component = x.A.RawValue == 0 ? x.B.RawValue : x.A.RawValue;
+        return (int)((component >> 126) & 1);
     }
 }

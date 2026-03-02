@@ -43,9 +43,55 @@ public interface IQubicCrypt
     byte[] GetPublicKey(string seed);
 
     /// <summary>
+    /// Gets the 32-byte public key into a pre-allocated buffer (zero-alloc output).
+    /// </summary>
+    void GetPublicKey(string seed, Span<byte> publicKey)
+    {
+        var pk = GetPublicKey(seed);
+        pk.CopyTo(publicKey);
+    }
+
+    /// <summary>
+    /// Gets the 60-character identity directly from a 55-character seed.
+    /// </summary>
+    string GetIdentityFromSeed(string seed)
+    {
+        var publicKey = GetPublicKey(seed);
+        return GetIdentityFromPublicKey(publicKey);
+    }
+
+    /// <summary>
+    /// Gets the identity from a seed into a pre-allocated char buffer (zero-alloc).
+    /// </summary>
+    void GetIdentityFromSeed(string seed, Span<char> identity)
+    {
+        var id = GetIdentityFromSeed(seed);
+        id.AsSpan().CopyTo(identity);
+    }
+
+    /// <summary>
+    /// Gets the identity from a seed (as ReadOnlySpan) into a pre-allocated char buffer (zero-alloc).
+    /// </summary>
+    void GetIdentityFromSeed(ReadOnlySpan<char> seed, Span<char> identity)
+    {
+        var id = GetIdentityFromSeed(seed.ToString());
+        id.AsSpan().CopyTo(identity);
+    }
+
+    /// <summary>
     /// Converts a 32-byte public key to a 60-character Qubic identity.
     /// </summary>
     string GetIdentityFromPublicKey(byte[] publicKey);
+
+    /// <summary>
+    /// Converts a 32-byte public key to a 60-character identity into a pre-allocated buffer (zero-alloc).
+    /// </summary>
+    void GetIdentityFromPublicKey(ReadOnlySpan<byte> publicKey, Span<char> identity)
+    {
+        var pk = publicKey.ToArray();
+        var id = GetIdentityFromPublicKey(pk);
+        id.AsSpan().CopyTo(identity);
+    }
 
     /// <summary>
     /// Converts 32-byte data to human-readable lowercase identity format (60 chars).
