@@ -198,4 +198,10 @@ public readonly struct Fp2 : IEquatable<Fp2>
     public override string ToString() => $"({A} + {B}i)";
 
     public bool IsZero => A.IsZero && B.IsZero;
+
+    /// <summary>
+    /// Frobenius endomorphism in GF(p²): conjugate(a + bi) = a - bi = (a+bi)^p.
+    /// </summary>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    public Fp2 Conjugate() => new Fp2(A, -B);
 }

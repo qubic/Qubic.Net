@@ -121,11 +121,12 @@ public static class SchnorrQ
         // Take first 32 bytes and reduce mod curve order to get scalar
         var scalar = ScalarField.FromBytes32LE(hash.AsSpan(0, 32));
 
-        // Compute public key: P = scalar * G
-        var publicPoint = FourQPoint.ScalarMul(FourQPoint.BasePoint, scalar);
+        // Convert scalar to bytes for optimized fixed-base multiplication
+        Span<byte> scalarBytes = stackalloc byte[32];
+        ScalarField.ToBytes32LE(scalar, scalarBytes);
 
-        // Encode the public key
-        return FourQCodec.Encode(publicPoint);
+        // Compute public key: P = scalar * G using precomputed table
+        return EccMul.ScalarMulFixed(scalarBytes);
     }
 
     /// <summary>
@@ -146,11 +147,12 @@ public static class SchnorrQ
         // Take first 32 bytes and reduce mod curve order to get scalar
         var scalar = ScalarField.FromBytes32LE(hash.AsSpan(0, 32));
 
-        // Compute public key: P = scalar * G
-        var publicPoint = FourQPoint.ScalarMul(FourQPoint.BasePoint, scalar);
+        // Convert scalar to bytes for optimized fixed-base multiplication
+        Span<byte> scalarBytes = stackalloc byte[32];
+        ScalarField.ToBytes32LE(scalar, scalarBytes);
 
-        // Encode the public key into output buffer
-        FourQCodec.Encode(publicPoint, output);
+        // Compute public key: P = scalar * G using precomputed table
+        EccMul.ScalarMulFixed(scalarBytes, output);
     }
 
     /// <summary>
@@ -184,13 +186,15 @@ public static class SchnorrQ
         var nonceHash = K12.Hash(nonceInput, 64);
         var k = ScalarField.FromBytes32LE(nonceHash.AsSpan(0, 32));
 
-        // Compute R = k * G
-        var R = FourQPoint.ScalarMul(FourQPoint.BasePoint, k);
-        var encodedR = FourQCodec.Encode(R);
+        // Compute R = k * G using optimized fixed-base multiplication
+        Span<byte> kBytes = stackalloc byte[32];
+        ScalarField.ToBytes32LE(k, kBytes);
+        Span<byte> encodedR = stackalloc byte[32];
+        EccMul.ScalarMulFixed(kBytes, encodedR);
 
         // Compute challenge: h = K12(R || publicKey || messageDigest) mod N
         Span<byte> challengeInput = stackalloc byte[96];
-        encodedR.AsSpan().CopyTo(challengeInput);
+        encodedR.CopyTo(challengeInput);
         publicKey.CopyTo(challengeInput.Slice(32));
         messageDigest.CopyTo(challengeInput.Slice(64));
 
@@ -202,7 +206,7 @@ public static class SchnorrQ
 
         // Signature is R || s (64 bytes)
         var signature = new byte[64];
-        encodedR.AsSpan().CopyTo(signature);
+        encodedR.CopyTo(signature);
         ScalarField.ToBytes32LE(s, signature.AsSpan(32));
 
         return signature;
@@ -252,12 +256,15 @@ public static class SchnorrQ
         var challengeHash = K12.Hash(challengeInput, 64);
         var h = ScalarField.FromBytes32LE(challengeHash.AsSpan(0, 32));
 
-        // Verify: s * G + h * P == R
-        var sG = FourQPoint.ScalarMul(FourQPoint.BasePoint, s);
-        var hP = FourQPoint.ScalarMul(P.Value, h);
-        var computed = FourQPoint.Add(sG, hP);
+        // Verify: s * G + h * P == R using double scalar multiplication
+        Span<byte> sBytes = stackalloc byte[32];
+        ScalarField.ToBytes32LE(s, sBytes);
+        Span<byte> hBytes = stackalloc byte[32];
+        ScalarField.ToBytes32LE(h, hBytes);
+        var computed = EccMul.ScalarMulDouble(sBytes, hBytes, P.Value.X, P.Value.Y);
+        if (computed == null) return false;
 
-        return computed == R.Value;
+        return computed.Value == R.Value;
     }
 
     /// <summary>
@@ -318,9 +325,11 @@ public static class SchnorrQ
         var nonceHash = K12.Hash(nonceInput, 64);
         var k = ScalarField.FromBytes32LE(nonceHash.AsSpan(0, 32));
 
-        // Compute R = k * G
-        var R = FourQPoint.ScalarMul(FourQPoint.BasePoint, k);
-        var encodedR = FourQCodec.Encode(R);
+        // Compute R = k * G using optimized fixed-base multiplication
+        Span<byte> kBytes = stackalloc byte[32];
+        ScalarField.ToBytes32LE(k, kBytes);
+        var encodedR = new byte[32];
+        EccMul.ScalarMulFixed(kBytes, encodedR);
 
         // Compute challenge: h = K12(R || publicKey || message) mod N
         var challengeInput = new byte[64 + message.Length];
@@ -382,11 +391,14 @@ public static class SchnorrQ
         var challengeHash = K12.Hash(challengeInput, 64);
         var h = ScalarField.FromBytes32LE(challengeHash.AsSpan(0, 32));
 
-        // Verify: s * G + h * P == R
-        var sG = FourQPoint.ScalarMul(FourQPoint.BasePoint, s);
-        var hP = FourQPoint.ScalarMul(P.Value, h);
-        var computed = FourQPoint.Add(sG, hP);
+        // Verify: s * G + h * P == R using double scalar multiplication
+        Span<byte> sBytes = stackalloc byte[32];
+        ScalarField.ToBytes32LE(s, sBytes);
+        Span<byte> hBytes = stackalloc byte[32];
+        ScalarField.ToBytes32LE(h, hBytes);
+        var computed = EccMul.ScalarMulDouble(sBytes, hBytes, P.Value.X, P.Value.Y);
+        if (computed == null) return false;
 
-        return computed == R.Value;
+        return computed.Value == R.Value;
     }
 }
