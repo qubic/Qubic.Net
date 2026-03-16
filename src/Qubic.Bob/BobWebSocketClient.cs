@@ -22,6 +22,8 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
     private readonly ConcurrentDictionary<int, TaskCompletionSource<JsonElement?>> _pendingRequests = new();
     private readonly ConcurrentDictionary<string, SubscriptionEntry> _activeSubscriptions = new();
     private readonly ConcurrentDictionary<int, SubscriptionEntry> _pendingSubscriptionEntries = new();
+    private readonly ConcurrentDictionary<SubscriptionEntry, byte> _logicalSubscriptions = new();
+    private CancellationTokenSource? _resubscribeCts;
     private readonly SemaphoreSlim _connectLock = new(1, 1);
     private readonly SemaphoreSlim _rateLock = new(1, 1);
     private readonly Queue<long> _requestTimestamps = new();
@@ -148,9 +150,18 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
     {
         State = BobConnectionState.Reconnecting;
 
+        // Cancel any in-flight resubscription from a previous reconnect
+        _resubscribeCts?.Cancel();
+        _resubscribeCts?.Dispose();
+        _resubscribeCts = null;
+
         // Mark all subscriptions as disconnected
-        foreach (var entry in _activeSubscriptions.Values)
-            entry.Subscription.OnDisconnected();
+        foreach (var entry in _logicalSubscriptions.Keys)
+            if (!entry.Subscription.CancellationToken.IsCancellationRequested)
+                entry.Subscription.OnDisconnected();
+
+        // Clear server-side subscription ID mappings (they're invalid now)
+        _activeSubscriptions.Clear();
 
         // Fail all pending requests
         foreach (var pending in _pendingRequests)
@@ -192,11 +203,14 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
                 // Fire-and-forget resubscription — the receive loop will resume
                 // immediately after ReconnectAsync returns, so it can process
                 // the subscribe responses that ResubscribeAllAsync awaits.
+                // Use a linked CTS so a new disconnect cancels this resubscription.
+                var resubCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                _resubscribeCts = resubCts;
                 _ = Task.Run(async () =>
                 {
                     try
                     {
-                        await ResubscribeAllAsync(cancellationToken);
+                        await ResubscribeAllAsync(resubCts.Token);
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
@@ -204,7 +218,7 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
                             $"Resubscription failed: {ex.Message}",
                             _activeNode?.BaseUrl, ex);
                     }
-                }, cancellationToken);
+                }, resubCts.Token);
 
                 return;
             }
@@ -219,11 +233,10 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
 
     private async Task ResubscribeAllAsync(CancellationToken cancellationToken)
     {
-        // Snapshot and deduplicate: OnDisconnected nulls ServerSubscriptionId but
-        // doesn't remove the old dict key, so the same entry can appear under
-        // multiple keys. Clear the dict and rebuild from unique entries.
-        var entries = _activeSubscriptions.Values.Distinct().ToList();
-        _activeSubscriptions.Clear();
+        // Use the durable logical subscriptions list (never cleared on reconnect).
+        // _activeSubscriptions (keyed by server subscription ID) was already cleared
+        // in ReconnectAsync and will be rebuilt as each resubscription succeeds.
+        var entries = _logicalSubscriptions.Keys.ToList();
 
         foreach (var entry in entries)
         {
@@ -865,6 +878,12 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
             _activeSubscriptions.TryRemove(subscription.ServerSubscriptionId, out _);
         }
 
+        // Remove from logical subscriptions so it won't be restored on reconnect
+        var logicalEntry = _logicalSubscriptions.Keys
+            .FirstOrDefault(e => e.Subscription == subscription);
+        if (logicalEntry is not null)
+            _logicalSubscriptions.TryRemove(logicalEntry, out _);
+
         subscription.Dispose();
     }
 
@@ -873,6 +892,9 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
         SubscriptionEntry entry,
         CancellationToken cancellationToken)
     {
+        // Track in logical set so reconnection can always find it
+        _logicalSubscriptions.TryAdd(entry, 0);
+
         var subscriptionId = await SendSubscribeAsync(
             subscription.SubscriptionType,
             subscription.OriginalParams,
@@ -1203,9 +1225,13 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
         }
         catch { /* shutting down */ }
 
-        foreach (var entry in _activeSubscriptions.Values)
+        _resubscribeCts?.Cancel();
+        _resubscribeCts?.Dispose();
+
+        foreach (var entry in _logicalSubscriptions.Keys)
             entry.Subscription.Dispose();
 
+        _logicalSubscriptions.Clear();
         _activeSubscriptions.Clear();
 
         if (_webSocket?.State == WebSocketState.Open)
