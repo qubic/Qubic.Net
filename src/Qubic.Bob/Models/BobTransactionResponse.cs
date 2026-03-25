@@ -28,5 +28,8 @@ public sealed class BobTransactionResponse
     [JsonPropertyName("inputSize")]
     public int InputSize { get; set; }
 
+    [JsonPropertyName("inputData")]
+    public string? InputData { get; set; }
+
     public long AmountValue => long.TryParse(Amount, out var val) ? val : 0;
 }
