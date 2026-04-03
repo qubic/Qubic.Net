@@ -238,6 +238,33 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
         // in ReconnectAsync and will be rebuilt as each resubscription succeeds.
         var entries = _logicalSubscriptions.Keys.ToList();
 
+        // Check if the epoch changed during the disconnect.
+        // If so, reset subscription cursors so they don't send stale logIds
+        // from the old epoch (which would cause the server to return no data).
+        try
+        {
+            var epochInfo = await GetCurrentEpochAsync(cancellationToken);
+            var currentEpoch = epochInfo.Epoch;
+
+            foreach (var entry in entries)
+            {
+                if (entry.ResetCursor is not null && entry.LastKnownEpoch.HasValue &&
+                    entry.LastKnownEpoch.Value != currentEpoch)
+                {
+                    EmitEvent(BobConnectionEventType.Error,
+                        $"Epoch changed during disconnect ({entry.LastKnownEpoch} → {currentEpoch}), resetting subscription cursor",
+                        _activeNode?.BaseUrl);
+                    entry.ResetCursor();
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            EmitEvent(BobConnectionEventType.Error,
+                $"Failed to check epoch during resubscription: {ex.Message}",
+                _activeNode?.BaseUrl);
+        }
+
         foreach (var entry in entries)
         {
             if (entry.Subscription.CancellationToken.IsCancellationRequested)
@@ -752,6 +779,7 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
         var subscription = new BobSubscription<TransferNotification>(
             "transfers", initialParams, BuildParams, _options.SubscriptionBufferSize);
 
+        SubscriptionEntry? entryRef = null;
         var entry = new SubscriptionEntry(subscription, notification =>
         {
             var data = JsonSerializer.Deserialize<TransferNotification>(
@@ -764,10 +792,15 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
             {
                 lastReceivedLogId = data.LogId;
                 lastEpoch = data.Epoch;
+                if (entryRef is not null) entryRef.LastKnownEpoch = data.Epoch;
             }
 
             _ = subscription.WriteAsync(data, subscription.CancellationToken);
-        });
+        })
+        {
+            ResetCursor = () => { lastReceivedLogId = null; lastEpoch = null; }
+        };
+        entryRef = entry;
 
         await RegisterSubscriptionAsync(subscription, entry, cancellationToken);
         return subscription;
@@ -811,6 +844,7 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
         var subscription = new BobSubscription<LogNotification>(
             "logs", initialParams, BuildParams, _options.SubscriptionBufferSize);
 
+        SubscriptionEntry? entryRef = null;
         var entry = new SubscriptionEntry(subscription, notification =>
         {
             var data = JsonSerializer.Deserialize<LogNotification>(
@@ -823,10 +857,15 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
             {
                 lastReceivedLogId = data.LogId;
                 lastEpoch = data.Epoch;
+                if (entryRef is not null) entryRef.LastKnownEpoch = data.Epoch;
             }
 
             _ = subscription.WriteAsync(data, subscription.CancellationToken);
-        });
+        })
+        {
+            ResetCursor = () => { lastReceivedLogId = null; lastEpoch = null; }
+        };
+        entryRef = entry;
 
         await RegisterSubscriptionAsync(subscription, entry, cancellationToken);
         return subscription;
@@ -1266,6 +1305,18 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
         private readonly Action<JsonElement> _dispatchCallback;
 
         public IBobSubscription Subscription { get; }
+
+        /// <summary>
+        /// Optional action to reset the cursor (lastReceivedLogId/lastEpoch/lastReceivedTick)
+        /// so that BuildParams falls back to the original subscription options.
+        /// Called when an epoch change is detected during resubscription.
+        /// </summary>
+        public Action? ResetCursor { get; init; }
+
+        /// <summary>
+        /// The last known epoch from received notifications, used to detect epoch changes on reconnect.
+        /// </summary>
+        public uint? LastKnownEpoch { get; set; }
 
         public SubscriptionEntry(IBobSubscription subscription, Action<JsonElement> dispatchCallback)
         {
