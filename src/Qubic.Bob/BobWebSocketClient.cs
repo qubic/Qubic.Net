@@ -38,6 +38,7 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
     private int _scQueryNonce = (int)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() & 0x7FFFFFFF);
     private int _reconnectAttempts;
     private bool _disposed;
+    private DateTime _lastMessageReceivedAt = DateTime.UtcNow;
 
     /// <summary>
     /// Current connection state.
@@ -131,12 +132,15 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
 
             _webSocket?.Dispose();
             _webSocket = new ClientWebSocket();
+            // Send WebSocket ping frames every 30s to detect dead connections quickly.
+            _webSocket.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
 
             var wsUrl = node.GetWebSocketUrl(_options.WebSocketPath);
             await _webSocket.ConnectAsync(new Uri(wsUrl), cancellationToken);
 
             _activeNode = node;
             _reconnectAttempts = 0;
+            _lastMessageReceivedAt = DateTime.UtcNow;
             State = BobConnectionState.Connected;
             EmitEvent(BobConnectionEventType.Connected, $"Connected to {node.BaseUrl}", node.BaseUrl);
         }
@@ -309,6 +313,25 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
 
             try
             {
+                // Watchdog: if we haven't received any WebSocket data in a while
+                // (despite KeepAlive pings), the connection is stale — force reconnect.
+                // This catches cases where the server is unreachable but the TCP
+                // connection hasn't yet been detected as dead.
+                if (State == BobConnectionState.Connected)
+                {
+                    var staleThreshold = TimeSpan.FromMinutes(2);
+                    var elapsed = DateTime.UtcNow - _lastMessageReceivedAt;
+                    if (elapsed > staleThreshold)
+                    {
+                        EmitEvent(BobConnectionEventType.Disconnected,
+                            $"No data received for {elapsed.TotalSeconds:F0}s — forcing reconnect",
+                            _activeNode?.BaseUrl);
+                        _webSocket?.Abort();
+                        // The receive loop will detect the abort and call ReconnectAsync
+                        continue;
+                    }
+                }
+
                 await ProbeAllNodesAsync(cancellationToken);
                 await EvaluateNodeSwitchAsync(cancellationToken);
             }
@@ -439,6 +462,8 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
                 {
                     var result = await _webSocket.ReceiveAsync(
                         new ArraySegment<byte>(buffer), cancellationToken);
+
+                    _lastMessageReceivedAt = DateTime.UtcNow;
 
                     if (result.MessageType == WebSocketMessageType.Close)
                         break;
@@ -753,6 +778,9 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         options ??= new TransferSubscriptionOptions();
 
+        long? initialStartLogId = options.StartLogId;
+        uint? initialStartEpoch = options.StartEpoch;
+
         long? lastReceivedLogId = null;
         uint? lastEpoch = null;
 
@@ -768,8 +796,8 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
             }
             else
             {
-                if (options.StartLogId.HasValue) paramObj["startLogId"] = options.StartLogId.Value;
-                if (options.StartEpoch.HasValue) paramObj["startEpoch"] = options.StartEpoch.Value;
+                if (initialStartLogId.HasValue) paramObj["startLogId"] = initialStartLogId.Value;
+                if (initialStartEpoch.HasValue) paramObj["startEpoch"] = initialStartEpoch.Value;
             }
 
             return ["transfers", paramObj];
@@ -798,7 +826,13 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
             _ = subscription.WriteAsync(data, subscription.CancellationToken);
         })
         {
-            ResetCursor = () => { lastReceivedLogId = null; lastEpoch = null; }
+            ResetCursor = () =>
+            {
+                lastReceivedLogId = null;
+                lastEpoch = null;
+                initialStartLogId = null;
+                initialStartEpoch = null;
+            }
         };
         entryRef = entry;
 
@@ -817,6 +851,11 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         options ??= new LogSubscriptionOptions();
 
+        // Capture initial start position; after ResetCursor these are cleared
+        // so the server starts from current on epoch change.
+        long? initialStartLogId = options.StartLogId;
+        uint? initialStartEpoch = options.StartEpoch;
+
         long? lastReceivedLogId = null;
         uint? lastEpoch = null;
 
@@ -833,8 +872,8 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
             }
             else
             {
-                if (options.StartLogId.HasValue) paramObj["startLogId"] = options.StartLogId.Value;
-                if (options.StartEpoch.HasValue) paramObj["startEpoch"] = options.StartEpoch.Value;
+                if (initialStartLogId.HasValue) paramObj["startLogId"] = initialStartLogId.Value;
+                if (initialStartEpoch.HasValue) paramObj["startEpoch"] = initialStartEpoch.Value;
             }
 
             return ["logs", paramObj];
@@ -863,7 +902,15 @@ public sealed class BobWebSocketClient : IAsyncDisposable, IDisposable
             _ = subscription.WriteAsync(data, subscription.CancellationToken);
         })
         {
-            ResetCursor = () => { lastReceivedLogId = null; lastEpoch = null; }
+            // On epoch change, clear ALL cursor state including the initial options
+            // so BuildParams sends no startLogId/startEpoch and the server starts from current.
+            ResetCursor = () =>
+            {
+                lastReceivedLogId = null;
+                lastEpoch = null;
+                initialStartLogId = null;
+                initialStartEpoch = null;
+            }
         };
         entryRef = entry;
 
