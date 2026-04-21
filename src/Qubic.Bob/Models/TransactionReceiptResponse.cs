@@ -21,23 +21,61 @@ public sealed class TransactionReceiptResponse
     public string TransactionHash => !string.IsNullOrEmpty(TxHash) ? TxHash : Hash;
 
     /// <summary>
-    /// Status as raw JsonElement — Bob may send as bool (true/false) or string ("true"/"false").
+    /// Status as raw JsonElement — Bob may send as bool (true/false),
+    /// a legacy string ("true"/"false"), or a Bob 1.4.0+ tri-state enum
+    /// ("success"/"failed"/"pending").
     /// </summary>
     [JsonPropertyName("status")]
     public JsonElement StatusRaw { get; set; }
 
     /// <summary>
-    /// Whether the transaction was executed successfully.
+    /// Tri-state status string. "success", "failed", or "pending" on Bob 1.4.0+.
+    /// Returns "success"/"failed" derived from legacy bool/string responses.
     /// </summary>
     [JsonIgnore]
-    public bool Status => StatusRaw.ValueKind switch
+    public string StatusString => StatusRaw.ValueKind switch
     {
-        JsonValueKind.True => true,
-        JsonValueKind.False => false,
-        JsonValueKind.String => bool.TryParse(StatusRaw.GetString(), out var val) && val,
-        _ => false
+        JsonValueKind.True => "success",
+        JsonValueKind.False => "failed",
+        JsonValueKind.String => NormalizeStatusString(StatusRaw.GetString()),
+        _ => "failed"
     };
+
+    /// <summary>
+    /// Whether the transaction was executed successfully.
+    /// Returns null when status is "pending" (Bob 1.4.0+).
+    /// </summary>
+    [JsonIgnore]
+    public bool? Executed => StatusString switch
+    {
+        "success" => true,
+        "failed" => false,
+        _ => null  // "pending" or anything unrecognized
+    };
+
+    /// <summary>
+    /// Legacy bool accessor. Pending is reported as false — callers that need
+    /// to distinguish should use <see cref="Executed"/> or <see cref="StatusString"/>.
+    /// </summary>
+    [JsonIgnore]
+    public bool Status => Executed ?? false;
+
+    /// <summary>True when the receipt indicates the tick is still being log-verified.</summary>
+    [JsonIgnore]
+    public bool IsPending => StatusString == "pending";
 
     [JsonPropertyName("tick")]
     public uint Tick { get; set; }
+
+    private static string NormalizeStatusString(string? raw)
+    {
+        if (string.IsNullOrEmpty(raw)) return "failed";
+        return raw.ToLowerInvariant() switch
+        {
+            "success" or "true" => "success",
+            "failed" or "false" => "failed",
+            "pending" => "pending",
+            _ => "failed"
+        };
+    }
 }
